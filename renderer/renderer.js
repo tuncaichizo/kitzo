@@ -304,12 +304,7 @@ function renderCharacterList() {
     btn.addEventListener('click', () => {
       if (c.id === currentCharId) return;
       loadCharacter(c.id);
-      if (c.id === 'kutucuzo') {
-        showEmote('💕', 4000);
-        say(line('together'), 4000);
-      } else {
-        showEmote('✨', 1800);
-      }
+      showEmote(c.id === 'kutucuzo' ? '💕' : '✨', 2500);
     });
     charListEl.appendChild(btn);
   }
@@ -341,7 +336,7 @@ function summon(id) {
   jump();
   if (id === 'kutucuzo') {
     showEmote('💕', 4000);
-    say(line('together'), 4000, { replace: true });
+    hideBubble();
   } else {
     showEmote('✨', 2500);
     say(line('switched'), 3000, { replace: true });
