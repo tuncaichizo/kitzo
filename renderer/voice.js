@@ -219,6 +219,7 @@
     let activeUntil = 0;
     let previous = null;
     let lastSpeechCallback = 0;
+    let speechLevel = 0.02;
     const stats = { frames: 0, speechFrames: 0, peak: 0 };
     node.onaudioprocess = (e) => {
       const data = e.inputBuffer.getChannelData(0);
@@ -230,24 +231,29 @@
       const wasActive = now < activeUntil;
       stats.frames++;
       if (rms > stats.peak) stats.peak = rms;
-      if (rms > Math.max(0.006, noiseFloor * 3.5)) {
+      if (rms > Math.max(0.003, noiseFloor * 4)) {
         stats.speechFrames++;
         activeUntil = now + 1800;
+        speechLevel = speechLevel * 0.9 + rms * 0.1;
         if (onSpeech && now - lastSpeechCallback > 500) {
           lastSpeechCallback = now;
           onSpeech();
         }
       }
+      // Sessiz mikrofonlar icin otomatik kazanc: konusma seviyesini ~0.08 RMS'e cek
+      const gain = Math.min(10, Math.max(1, 0.08 / Math.max(speechLevel, 0.004)));
+      const scaled = new Float32Array(data.length);
+      for (let i = 0; i < data.length; i++) scaled[i] = Math.max(-1, Math.min(1, data[i] * gain));
       if (now < activeUntil) {
         try {
           // kapi yeni acildiysa bir onceki parcayi da ver ki ilk hece kirpilmasin
           if (!wasActive && previous) recognizer.acceptWaveformFloat(previous, ctx.sampleRate);
-          recognizer.acceptWaveform(e.inputBuffer);
+          recognizer.acceptWaveformFloat(scaled, ctx.sampleRate);
         } catch (err) {
           console.error('acceptWaveform', err);
         }
       }
-      previous = Float32Array.from(data);
+      previous = scaled;
     };
     source.connect(node);
     node.connect(ctx.destination);
@@ -258,7 +264,7 @@
       sampleRate: ctx.sampleRate,
       // Teshis icin: son okumadan beri kac ses karesi geldi, kaci konusma sayildi, en yuksek seviye
       readStats() {
-        const out = { ...stats, noiseFloor };
+        const out = { ...stats, noiseFloor, speechLevel };
         stats.frames = 0;
         stats.speechFrames = 0;
         stats.peak = 0;
