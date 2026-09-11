@@ -1271,6 +1271,7 @@ function runVoiceCommand(tokens, rawTokens) {
 
   const action = matchAction(tokens);
   if (action) {
+    window.ichi.voiceLog(`ACTION: ${action.label}`);
     showEmote('🚀', 2500);
     jump();
     say(line('actionDone', { label: action.label }), 3000, { replace: true });
