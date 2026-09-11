@@ -296,6 +296,7 @@ async function setLanguage(next) {
   lang = await window.ichi.setLanguage(next);
   T = I18N[lang] || I18N.en;
   applyLanguage();
+  if (menuOpen()) relayoutOverlay();
   say(line('langChanged'), 3000, { replace: true });
   if (micOn) {
     stopVoice();
@@ -309,7 +310,7 @@ function loadCharacter(id) {
   const c = characters.find((x) => x.id === id) || characters[0];
   currentCharId = c.id;
   charEl.innerHTML = c.svg;
-  menuTitleEl.textContent = c.name.toUpperCase();
+  menuTitleEl.textContent = `${c.emoji} ${c.name.toUpperCase()}`;
   saveItem('character', c.id);
   renderCharacterList();
 }
@@ -480,6 +481,8 @@ function scheduleNextMove() {
   if (stay) return;
   const idleDelay = 2500 + Math.random() * 5000;
   moveTimer = setTimeout(() => {
+    // pencere programla tasindiysa mouseleave gelmemis olabilir; hover durumunu dogrula
+    if (hovering && !charEl.matches(':hover')) hovering = false;
     if (dragging || menuOpen() || sleeping || stay || hovering) {
       scheduleNextMove();
       return;
@@ -496,12 +499,13 @@ function walkToRandomSpot() {
 }
 
 // Hedefe yuruyerek gider; y farki varsa yol boyunca yumusakca kapatilir.
-function walkTo(targetX, targetY, done) {
+// ignoreHover: kullanicinin acik istegiyle (koseye git) fare ustundeyken de yurur.
+function walkTo(targetX, targetY, { ignoreHover = false } = {}) {
   if (Math.abs(targetX - posX) < 5 && Math.abs(targetY - posY) < 5) {
-    if (done) done();
-    else scheduleNextMove();
+    scheduleNextMove();
     return;
   }
+  if (ignoreHover) hovering = false;
   const direction = targetX >= posX ? 1 : -1;
   const startX = posX;
   const startY = posY;
@@ -529,8 +533,7 @@ function walkTo(targetX, targetY, done) {
       posY = targetY;
       clearInterval(walkTick);
       setIdle();
-      if (done) done();
-      else scheduleNextMove();
+      scheduleNextMove();
     }
     window.ichi.moveWindow(posX, posY);
   }, 16);
@@ -559,7 +562,7 @@ function goToCorner() {
   const extra = overlay ? overlay.extra : 0;
   const targetX = d.x + d.width - CHAR_W - 30;
   const targetY = d.y + d.height - CHAR_H - (overlay && !overlay.below ? extra : 0);
-  walkTo(targetX, targetY);
+  walkTo(targetX, targetY, { ignoreHover: true });
 }
 
 // ---------- surukleme / tiklama ----------
@@ -586,6 +589,11 @@ charEl.addEventListener('mousedown', (e) => {
 
 window.addEventListener('mousemove', (e) => {
   if (!dragging) return;
+  // fare tusu pencere disinda birakildiysa mouseup gelmez; surukleme takili kalmasin
+  if (e.buttons === 0) {
+    finishDrag(false);
+    return;
+  }
   const dx = e.screenX - dragStartMouse.x;
   const dy = e.screenY - dragStartMouse.y;
   if (!dragMoved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
@@ -602,13 +610,13 @@ window.addEventListener('mousemove', (e) => {
   window.ichi.moveWindow(posX, posY);
 });
 
-window.addEventListener('mouseup', () => {
+function finishDrag(allowClick) {
   if (!dragging) return;
   dragging = false;
   charEl.classList.add('idle');
   lastInteraction = Date.now();
 
-  if (dragMoved) {
+  if (dragMoved || !allowClick) {
     hideEmote();
     scheduleNextMove();
     return;
@@ -616,7 +624,9 @@ window.addEventListener('mouseup', () => {
   // Tiklama her zaman menuyu acar/kapatir; uyuyorsa sessizce uyanir.
   if (sleeping) wakeUp('click');
   toggleMenu();
-});
+}
+
+window.addEventListener('mouseup', () => finishDrag(true));
 
 // ---------- overlay (menu / balon) ----------
 
@@ -628,6 +638,12 @@ function bubbleOpen() {
   return Boolean(overlay && overlay.el === bubbleEl);
 }
 
+// Pencere yukari dogru buyudugunde posY kayar; surukleme suruyorsa baslangic noktasi da ayni kadar kaymali
+function shiftPos(dy) {
+  posY += dy;
+  if (dragging && dragStartPos) dragStartPos.y += dy;
+}
+
 function openOverlay(el) {
   if (overlay) closeOverlay();
   const extra = el.offsetHeight + OVERLAY_GAP;
@@ -636,7 +652,7 @@ function openOverlay(el) {
   stageEl.classList.toggle('below', below);
   el.classList.add('open');
   window.ichi.setOverlay({ open: true, extra, below });
-  if (!below) posY -= extra;
+  if (!below) shiftPos(-extra);
   overlay = { el, extra, below };
 }
 
@@ -645,7 +661,7 @@ function closeOverlay() {
   const { el, extra, below } = overlay;
   el.classList.remove('open');
   window.ichi.setOverlay({ open: false, extra, below });
-  if (!below) posY += extra;
+  if (!below) shiftPos(extra);
   overlay = null;
 }
 
