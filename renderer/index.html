@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Kitzo</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="stage">
+    <div id="bubble" class="bubble"><div id="bubble-text"></div></div>
+
+    <div id="menu" class="menu">
+      <div id="menu-title" class="menu-title">KITZO</div>
+      <div id="menu-status" class="menu-status"></div>
+
+      <div id="menu-main" class="menu-section">
+        <div class="menu-sub" data-i18n="askWhat"></div>
+        <div id="menu-actions" class="menu-actions"></div>
+        <div class="menu-divider"></div>
+        <button id="btn-market" class="menu-btn" data-i18n="market"></button>
+        <button id="btn-reminders" class="menu-btn" data-i18n="reminders"></button>
+        <button id="btn-actions" class="menu-btn" data-i18n="actions"></button>
+        <button id="btn-characters" class="menu-btn" data-i18n="characters"></button>
+        <button id="btn-settings" class="menu-btn" data-i18n="settings"></button>
+      </div>
+
+      <div id="menu-actionsec" class="menu-section" hidden>
+        <div class="menu-sub" data-i18n="actionsTitle"></div>
+        <button id="btn-stay" class="menu-btn"></button>
+        <button id="btn-corner" class="menu-btn" data-i18n="corner"></button>
+        <button id="btn-wave" class="menu-btn" data-i18n="wave"></button>
+        <button id="btn-sleep" class="menu-btn"></button>
+        <button class="menu-btn btn-back" data-i18n="back"></button>
+      </div>
+
+      <div id="menu-characters" class="menu-section" hidden>
+        <div class="menu-sub" data-i18n="whoShouldBe"></div>
+        <div id="character-list" class="menu-actions"></div>
+        <button class="menu-btn btn-back" data-i18n="back"></button>
+      </div>
+
+      <div id="menu-settings" class="menu-section" hidden>
+        <div class="menu-sub" data-i18n="settingsTitle"></div>
+        <button id="btn-language" class="menu-btn"></button>
+        <button id="btn-mic" class="menu-btn"></button>
+        <button id="btn-autostart" class="menu-btn"></button>
+        <button id="btn-shortcuts" class="menu-btn" data-i18n="editShortcuts"></button>
+        <button id="btn-quit" class="menu-btn danger" data-i18n="quit"></button>
+        <button class="menu-btn btn-back" data-i18n="back"></button>
+      </div>
+
+      <div id="menu-shortcuts" class="menu-section" hidden>
+        <div class="menu-sub" data-i18n="newShortcut"></div>
+        <input id="sc-label" class="menu-input" maxlength="40" data-i18n-ph="labelPh" />
+        <input id="sc-target" class="menu-input" data-i18n-ph="targetPh" />
+        <input id="sc-voice" class="menu-input" maxlength="80" data-i18n-ph="voicePh" />
+        <button id="btn-sc-add" class="menu-btn" data-i18n="add"></button>
+        <div class="menu-sub" data-i18n="existingShortcuts"></div>
+        <div id="shortcut-list" class="menu-actions"></div>
+        <button id="btn-sc-back" class="menu-btn"  data-i18n="back"></button>
+      </div>
+
+      <div id="menu-reminders" class="menu-section" hidden>
+        <div class="menu-sub" data-i18n="newReminder"></div>
+        <input id="rm-minutes" class="menu-input" type="number" min="1" data-i18n-ph="minutesPh" />
+        <input id="rm-text" class="menu-input" maxlength="60" data-i18n-ph="notePh" />
+        <button id="btn-rm-add" class="menu-btn" data-i18n="setReminder"></button>
+        <div class="menu-sub" data-i18n="activeReminders"></div>
+        <div id="reminder-list" class="menu-actions"></div>
+        <button class="menu-btn btn-back" data-i18n="back"></button>
+      </div>
+
+      <button id="btn-close-menu" class="menu-btn close" data-i18n="close"></button>
+    </div>
+
+    <div id="emote" class="emote" hidden></div>
+    <div id="character" class="character idle"></div>
+  </div>
+
+  <script src="../node_modules/vosk-browser/dist/vosk.js"></script>
+  <script src="characters.js"></script>
+  <script src="i18n.js"></script>
+  <script src="voice.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

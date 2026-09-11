@@ -1,0 +1,4 @@
+[
+  { "id": "youtube", "label": "YouTube", "icon": "▶️", "type": "url", "target": "https://www.youtube.com/", "voice": ["youtube", "yutup", "you tube"] },
+  { "id": "google", "label": "Google", "icon": "🔎", "type": "url", "target": "https://www.google.com/", "voice": ["google", "gugıl"] }
+]

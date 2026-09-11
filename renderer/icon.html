@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  html, body { margin: 0; width: 256px; height: 256px; background: transparent; overflow: hidden; }
+  #c { width: 256px; height: 256px; display: flex; align-items: center; justify-content: center; }
+  #c svg { width: 256px; height: 256px; }
+</style>
+</head>
+<body>
+  <div id="c"></div>
+  <script src="characters.js"></script>
+  <script>
+    const id = new URLSearchParams(location.search).get('char') || 'kitzo';
+    const c = window.KITZO_CHARACTERS.find((x) => x.id === id) || window.KITZO_CHARACTERS[0];
+    document.getElementById('c').innerHTML = c.svg;
+  </script>
+</body>
+</html>
