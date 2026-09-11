@@ -224,6 +224,7 @@ async function init() {
 
   setTimeout(() => {
     showEmote('👋', 2500);
+    wave();
     say(line('greeting'));
     if (!savedItem('tipShown')) {
       say(line('tip'));
@@ -444,6 +445,13 @@ function jump() {
   void charEl.offsetWidth;
   charEl.classList.add('jump');
   setTimeout(() => charEl.classList.remove('jump'), 700);
+}
+
+function wave() {
+  charEl.classList.remove('wave');
+  void charEl.offsetWidth;
+  charEl.classList.add('wave');
+  setTimeout(() => charEl.classList.remove('wave'), 2200);
 }
 
 function scheduleNextMove() {
@@ -1185,6 +1193,7 @@ function runVoiceCommand(tokens, rawTokens) {
   }
   if (has(vc.hello)) {
     showEmote('👋', 2500);
+    wave();
     say(line('hello'), 3500, { replace: true });
     return true;
   }
@@ -1239,7 +1248,7 @@ cornerBtn.addEventListener('click', () => {
 waveBtn.addEventListener('click', () => {
   closeMenu();
   showEmote('👋', 2500);
-  jump();
+  wave();
   say(line('hello'), 3500);
 });
 shortcutsBtn.addEventListener('click', () => {
