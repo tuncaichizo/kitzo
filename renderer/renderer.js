@@ -941,12 +941,14 @@ function onFinalTranscript(text) {
   const wake = findWakeAny(tokens);
   let cmd;
   let rawCmd;
+  let summoned = false;
   if (wake) {
     cmd = tokens.slice(wake.index + wake.length);
     rawCmd = raw.slice(wake.index + wake.length);
     if (wake.id !== currentCharId) {
       if (sleeping) wakeUp('voice');
       summon(wake.id);
+      summoned = true;
       if (!cmd.length) return;
     }
   } else if (listeningUntil > Date.now()) {
@@ -963,10 +965,10 @@ function onFinalTranscript(text) {
     return;
   }
   hideListening();
-  runVoiceCommand(cmd, rawCmd);
+  runVoiceCommand(cmd, rawCmd, { quietUnknown: summoned });
 }
 
-function runVoiceCommand(tokens, rawTokens) {
+function runVoiceCommand(tokens, rawTokens, opts = {}) {
   const vc = T.voice;
   const has = (words) => V.hasWord(tokens, words);
   window.ichi.voiceLog(`COMMAND: ${tokens.join(' ')}`);
@@ -1053,6 +1055,8 @@ function runVoiceCommand(tokens, rawTokens) {
     return;
   }
 
+  // Karakter yeni cagrildiysa arta kalan anlamsiz kelimeler icin sikayet etme
+  if (opts.quietUnknown) return;
   showEmote('🤔', 2500);
   say(line('unknown'), 4500, { replace: true });
 }
