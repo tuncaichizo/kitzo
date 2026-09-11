@@ -221,6 +221,7 @@ async function init() {
   updateMicButton();
   bindIpc();
   scheduleNextMove();
+  scheduleBlink();
 
   setTimeout(() => {
     showEmote('👋', 2500);
@@ -452,6 +453,24 @@ function wave() {
   void charEl.offsetWidth;
   charEl.classList.add('wave');
   setTimeout(() => charEl.classList.remove('wave'), 2200);
+}
+
+// Dogal goz kirpma; arada bir tek gozle yaramaz kirpis
+let blinkTimer = null;
+function scheduleBlink() {
+  clearTimeout(blinkTimer);
+  blinkTimer = setTimeout(() => {
+    if (!sleeping) {
+      if (Math.random() < 0.12) {
+        charEl.classList.add('wink');
+        setTimeout(() => charEl.classList.remove('wink'), 650);
+      } else {
+        charEl.classList.add('blink');
+        setTimeout(() => charEl.classList.remove('blink'), 150);
+      }
+    }
+    scheduleBlink();
+  }, 2500 + Math.random() * 4500);
 }
 
 function scheduleNextMove() {

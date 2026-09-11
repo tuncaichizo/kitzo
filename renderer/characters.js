@@ -36,9 +36,11 @@ window.KITZO_CHARACTERS = [
 <path d="M45 62 L33 60 L45 72 Z" fill="#b9a7f0" class="o"/><path d="M105 62 L117 60 L105 72 Z" fill="#b9a7f0" class="o"/>
 <ellipse cx="55" cy="80" rx="5" ry="3" fill="#ff9ac2" opacity="0.6"/><ellipse cx="95" cy="80" rx="5" ry="3" fill="#ff9ac2" opacity="0.6"/>
 <path d="M53 63 Q61 58 69 62" fill="none" stroke="#3a2a5a" stroke-width="2.5" stroke-linecap="round"/>
-<circle cx="62" cy="70" r="11" fill="#4de3ff" opacity="0.18"/>
-<ellipse cx="62" cy="70" rx="8" ry="9" fill="#fff" class="o"/><circle cx="63" cy="71" r="5.5" fill="#4de3ff"/><circle cx="63.5" cy="72" r="3" fill="#1a1a2e"/><circle cx="60" cy="67" r="2" fill="#fff"/>
-<path d="M84 70 Q91 63 98 70" fill="none" stroke="#3a2a5a" stroke-width="3" stroke-linecap="round"/>
+<path d="M84 64 Q91 62 98 64" fill="none" stroke="#3a2a5a" stroke-width="2.5" stroke-linecap="round"/>
+<g class="eye-open"><circle cx="62" cy="70" r="11" fill="#4de3ff" opacity="0.18"/><ellipse cx="62" cy="70" rx="8" ry="9" fill="#fff" class="o"/><circle cx="63" cy="71" r="5.5" fill="#4de3ff"/><circle cx="63.5" cy="72" r="3" fill="#1a1a2e"/><circle cx="60" cy="67" r="2" fill="#fff"/></g>
+<path class="eye-closed" d="M54 70 Q62 64 70 70" fill="none" stroke="#3a2a5a" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><circle cx="90" cy="70" r="11" fill="#4de3ff" opacity="0.18"/><ellipse cx="90" cy="70" rx="8" ry="9" fill="#fff" class="o"/><circle cx="89" cy="71" r="5.5" fill="#4de3ff"/><circle cx="88.5" cy="72" r="3" fill="#1a1a2e"/><circle cx="92" cy="67" r="2" fill="#fff"/></g>
+<path class="eye-closed wink-eye" d="M82 70 Q90 64 98 70" fill="none" stroke="#3a2a5a" stroke-width="3" stroke-linecap="round"/>
 <path d="M72 78 L78 78 L75 81 Z" fill="#ff9ac2" class="o"/>
 <path d="M66 84 Q72 90 76 84 Q80 89 86 82" fill="none" stroke="#3a2a5a" stroke-width="2" stroke-linecap="round"/>
 <path d="M80 84 L84 84 L82 88 Z" fill="#fff" stroke="#3a2a5a" stroke-width="1"/>
@@ -67,8 +69,10 @@ window.KITZO_CHARACTERS = [
 <path d="M48 122 C46 98 58 80 70 74" stroke="#bff5ea" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.8"/>
 <circle cx="58" cy="140" r="4" fill="#3ec2aa" opacity="0.7"/><circle cx="96" cy="130" r="3" fill="#3ec2aa" opacity="0.7"/><circle cx="88" cy="150" r="2.5" fill="#3ec2aa" opacity="0.7"/>
 <g id="arm-right"><path d="M100 118 L110 138" class="lo"/><path d="M100 118 L110 138" class="lf"/><circle cx="110" cy="139" r="7" fill="#5fe0c8" class="o"/></g>
-<ellipse cx="62" cy="104" rx="8" ry="10" fill="#fff" class="o"/><circle cx="63" cy="106" r="4.5" fill="#1a1a2e"/><circle cx="60" cy="101" r="2" fill="#fff"/>
-<ellipse cx="90" cy="104" rx="8" ry="10" fill="#fff" class="o"/><circle cx="91" cy="106" r="4.5" fill="#1a1a2e"/><circle cx="88" cy="101" r="2" fill="#fff"/>
+<g class="eye-open"><ellipse cx="62" cy="104" rx="8" ry="10" fill="#fff" class="o"/><circle cx="63" cy="106" r="4.5" fill="#1a1a2e"/><circle cx="60" cy="101" r="2" fill="#fff"/></g>
+<path class="eye-closed" d="M54 104 Q62 98 70 104" fill="none" stroke="#1e6b60" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><ellipse cx="90" cy="104" rx="8" ry="10" fill="#fff" class="o"/><circle cx="91" cy="106" r="4.5" fill="#1a1a2e"/><circle cx="88" cy="101" r="2" fill="#fff"/></g>
+<path class="eye-closed wink-eye" d="M82 104 Q90 98 98 104" fill="none" stroke="#1e6b60" stroke-width="3" stroke-linecap="round"/>
 <path d="M64 124 Q75 138 86 124 Z" fill="#1e6b60"/><path d="M70 128 Q75 135 80 128 Z" fill="#ff7b9c"/>
 <ellipse cx="50" cy="118" rx="5" ry="3" fill="#ff7b9c" opacity="0.5"/><ellipse cx="102" cy="118" rx="5" ry="3" fill="#ff7b9c" opacity="0.5"/>
 <path d="M54 68 Q75 42 96 68 Z" fill="#ff5c5c" class="o"/>
@@ -102,7 +106,8 @@ window.KITZO_CHARACTERS = [
 <rect x="48" y="30" width="54" height="52" rx="14" fill="#cfd8e8" class="o"/>
 <circle cx="46" cy="56" r="6" fill="#8fa3c7" class="o"/><circle cx="104" cy="56" r="6" fill="#8fa3c7" class="o"/>
 <rect x="55" y="44" width="40" height="20" rx="8" fill="#1a2233" class="o"/>
-<rect x="61" y="50" width="9" height="8" rx="2" fill="#4de3ff"/><rect x="80" y="53" width="9" height="3" rx="1.5" fill="#4de3ff"/>
+<rect class="eye-open" x="61" y="50" width="9" height="8" rx="2" fill="#4de3ff"/><rect class="eye-closed" x="61" y="53" width="9" height="3" rx="1.5" fill="#4de3ff"/>
+<rect class="eye-open wink-eye" x="80" y="50" width="9" height="8" rx="2" fill="#4de3ff"/><rect class="eye-closed wink-eye" x="80" y="53" width="9" height="3" rx="1.5" fill="#4de3ff"/>
 <path d="M64 71 H86 M66 75 H84" stroke="#2b3247" stroke-width="2" stroke-linecap="round"/>
 <path d="M60 40 H90" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
 </svg>`,
@@ -136,8 +141,10 @@ window.KITZO_CHARACTERS = [
 <ellipse cx="75" cy="76" rx="17" ry="12" fill="#ffe8cc" class="o"/>
 <ellipse cx="75" cy="70" rx="4" ry="3" fill="#5a2a0a"/>
 <path d="M64 78 Q75 90 86 78" fill="none" stroke="#5a2a0a" stroke-width="2.5" stroke-linecap="round"/>
-<path d="M56 60 Q62 52 68 60" fill="none" stroke="#5a2a0a" stroke-width="3" stroke-linecap="round"/>
-<path d="M82 60 Q88 52 94 60" fill="none" stroke="#5a2a0a" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open"><circle cx="62" cy="58" r="5.5" fill="#fff" class="o"/><circle cx="63" cy="59" r="3.2" fill="#1a1a2e"/><circle cx="61" cy="56.5" r="1.2" fill="#fff"/></g>
+<path class="eye-closed" d="M56 60 Q62 52 68 60" fill="none" stroke="#5a2a0a" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><circle cx="88" cy="58" r="5.5" fill="#fff" class="o"/><circle cx="89" cy="59" r="3.2" fill="#1a1a2e"/><circle cx="87" cy="56.5" r="1.2" fill="#fff"/></g>
+<path class="eye-closed wink-eye" d="M82 60 Q88 52 94 60" fill="none" stroke="#5a2a0a" stroke-width="3" stroke-linecap="round"/>
 <ellipse cx="54" cy="72" rx="5" ry="3" fill="#ff5c8a" opacity="0.4"/><ellipse cx="96" cy="72" rx="5" ry="3" fill="#ff5c8a" opacity="0.4"/>
 </svg>`,
   },
@@ -161,8 +168,10 @@ window.KITZO_CHARACTERS = [
 <path d="M60 116 Q66 122 72 116 M78 116 Q84 122 90 116 M66 130 Q72 136 78 130 M62 142 Q68 148 74 142 M76 142 Q82 148 88 142" stroke="#3b4a8a" stroke-width="2" fill="none" stroke-linecap="round"/>
 <g id="arm-right"><path d="M100 104 Q120 124 104 142 Q94 130 92 106 Z" fill="#2c3a70" class="o"/><rect x="100" y="132" width="16" height="16" rx="3" fill="#f5f5f5" class="o"/><path d="M100 138 H116" stroke="#8b5a2b" stroke-width="3"/><path d="M116 136 Q123 140 116 145" fill="none" class="o"/><path d="M106 128 Q109 124 106 120" stroke="#aaa" stroke-width="1.5" fill="none" stroke-linecap="round"/></g>
 <circle cx="61" cy="84" r="14" fill="#fff" class="o"/><circle cx="89" cy="84" r="14" fill="#fff" class="o"/>
-<circle cx="62" cy="86" r="6" fill="#1a2040"/><circle cx="60" cy="83" r="2" fill="#fff"/>
-<circle cx="90" cy="86" r="6" fill="#1a2040"/><circle cx="88" cy="83" r="2" fill="#fff"/>
+<g class="eye-open"><circle cx="62" cy="86" r="6" fill="#1a2040"/><circle cx="60" cy="83" r="2" fill="#fff"/></g>
+<path class="eye-closed" d="M53 86 Q61 80 69 86" fill="none" stroke="#1a2040" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><circle cx="90" cy="86" r="6" fill="#1a2040"/><circle cx="88" cy="83" r="2" fill="#fff"/></g>
+<path class="eye-closed wink-eye" d="M81 86 Q89 80 97 86" fill="none" stroke="#1a2040" stroke-width="3" stroke-linecap="round"/>
 <circle cx="61" cy="84" r="14" fill="none" stroke="#d4a24c" stroke-width="4"/><circle cx="89" cy="84" r="14" fill="none" stroke="#d4a24c" stroke-width="4"/>
 <rect x="72" y="81" width="6" height="6" fill="#d4a24c" class="o"/>
 <path d="M47 82 Q40 78 44 70 M103 82 Q110 78 106 70" stroke="#6b4f1d" stroke-width="4" fill="none" stroke-linecap="round"/>
@@ -188,8 +197,10 @@ window.KITZO_CHARACTERS = [
 <path d="M42 150 Q36 70 75 60 Q114 70 108 150 Q100 142 92 154 Q84 144 75 154 Q66 144 58 154 Q50 142 42 150 Z" fill="#f4f1ff" class="o"/>
 <path d="M58 140 Q75 150 92 140" stroke="#d9d2f5" stroke-width="4" fill="none" stroke-linecap="round"/>
 <g id="arm-right"><path d="M100 116 L108 138" class="lo"/><path d="M100 116 L108 138" class="lf"/><circle cx="108" cy="139" r="7" fill="#f4f1ff" class="o"/></g>
-<ellipse cx="63" cy="98" rx="5" ry="8" fill="#1a1a2e"/><circle cx="61" cy="94" r="1.6" fill="#fff"/>
-<ellipse cx="87" cy="98" rx="5" ry="8" fill="#1a1a2e"/><circle cx="85" cy="94" r="1.6" fill="#fff"/>
+<g class="eye-open"><ellipse cx="63" cy="98" rx="5" ry="8" fill="#1a1a2e"/><circle cx="61" cy="94" r="1.6" fill="#fff"/></g>
+<path class="eye-closed" d="M58 98 Q63 94 68 98" fill="none" stroke="#1a1a2e" stroke-width="2.5" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><ellipse cx="87" cy="98" rx="5" ry="8" fill="#1a1a2e"/><circle cx="85" cy="94" r="1.6" fill="#fff"/></g>
+<path class="eye-closed wink-eye" d="M82 98 Q87 94 92 98" fill="none" stroke="#1a1a2e" stroke-width="2.5" stroke-linecap="round"/>
 <ellipse cx="75" cy="116" rx="6" ry="7" fill="#1a1a2e"/>
 <ellipse cx="52" cy="110" rx="5" ry="3" fill="#ff7bac" opacity="0.5"/><ellipse cx="98" cy="110" rx="5" ry="3" fill="#ff7bac" opacity="0.5"/>
 <path d="M60 62 L75 22 L90 62 Z" fill="#ff7bac" class="o"/>
@@ -256,8 +267,10 @@ window.KITZO_CHARACTERS = [
 <path d="M92 100 L104 120 L92 118 Z" fill="#e63946" class="o"/>
 <circle cx="75" cy="56" r="32" fill="#2b2d42" class="o"/>
 <path d="M50 60 Q56 34 75 36 Q94 34 100 60 Q88 80 75 78 Q62 80 50 60 Z" fill="#f7f7fb" class="o"/>
-<circle cx="63" cy="58" r="6" fill="#fff" class="o"/><circle cx="64" cy="59" r="3.5" fill="#14162b"/><circle cx="62" cy="57" r="1.3" fill="#fff"/>
-<path d="M82 58 Q88 53 94 58" fill="none" stroke="#14162b" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open"><circle cx="63" cy="58" r="6" fill="#fff" class="o"/><circle cx="64" cy="59" r="3.5" fill="#14162b"/><circle cx="62" cy="57" r="1.3" fill="#fff"/></g>
+<path class="eye-closed" d="M57 58 Q63 53 69 58" fill="none" stroke="#14162b" stroke-width="3" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><circle cx="87" cy="58" r="6" fill="#fff" class="o"/><circle cx="88" cy="59" r="3.5" fill="#14162b"/><circle cx="86" cy="57" r="1.3" fill="#fff"/></g>
+<path class="eye-closed wink-eye" d="M82 58 Q88 53 94 58" fill="none" stroke="#14162b" stroke-width="3" stroke-linecap="round"/>
 <path d="M67 66 L83 66 L75 76 Z" fill="#ff9f43" class="o"/>
 <ellipse cx="54" cy="68" rx="5" ry="3" fill="#ff8a80" opacity="0.5"/><ellipse cx="96" cy="68" rx="5" ry="3" fill="#ff8a80" opacity="0.5"/>
 <path d="M44 56 Q44 20 75 20 Q106 20 106 56" stroke="#14162b" stroke-width="7" fill="none" stroke-linecap="round"/>
@@ -295,10 +308,12 @@ window.KITZO_CHARACTERS = [
 <ellipse cx="57" cy="66" rx="5" ry="3" fill="#ff8a80" opacity="0.55"/><ellipse cx="93" cy="66" rx="5" ry="3" fill="#ff8a80" opacity="0.55"/>
 <path d="M56 46 Q63 42 69 46" fill="none" stroke="#3d2412" stroke-width="2" stroke-linecap="round"/>
 <path d="M82 46 Q88 42 94 46" fill="none" stroke="#3d2412" stroke-width="2" stroke-linecap="round"/>
-<ellipse cx="63" cy="56" rx="6" ry="7" fill="#ffffff" class="o"/><circle cx="64" cy="57" r="4" fill="#7b61ff"/><circle cx="64.5" cy="57.5" r="2.2" fill="#1a1a2e"/><circle cx="62" cy="54" r="1.4" fill="#ffffff"/>
+<g class="eye-open"><ellipse cx="63" cy="56" rx="6" ry="7" fill="#ffffff" class="o"/><circle cx="64" cy="57" r="4" fill="#7b61ff"/><circle cx="64.5" cy="57.5" r="2.2" fill="#1a1a2e"/><circle cx="62" cy="54" r="1.4" fill="#ffffff"/></g>
+<path class="eye-closed" d="M57 56 Q63 51 69 56" fill="none" stroke="#3d2412" stroke-width="2.5" stroke-linecap="round"/>
 <path d="M57 50 L54 47 M59 48 L57 44" stroke="#3d2412" stroke-width="1.5" stroke-linecap="round"/>
-<path d="M83 56 Q88 51 93 56" fill="none" stroke="#3d2412" stroke-width="2.5" stroke-linecap="round"/>
-<path d="M93 55 L96 52 M91 53 L93 49" stroke="#3d2412" stroke-width="1.5" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><ellipse cx="87" cy="56" rx="6" ry="7" fill="#ffffff" class="o"/><circle cx="86" cy="57" r="4" fill="#7b61ff"/><circle cx="85.5" cy="57.5" r="2.2" fill="#1a1a2e"/><circle cx="88" cy="54" r="1.4" fill="#ffffff"/></g>
+<path class="eye-closed wink-eye" d="M83 56 Q88 51 93 56" fill="none" stroke="#3d2412" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M93 50 L96 47 M91 48 L93 44" stroke="#3d2412" stroke-width="1.5" stroke-linecap="round"/>
 <path d="M68 68 Q75 76 82 68" fill="none" stroke="#7a3b1e" stroke-width="2.2" stroke-linecap="round"/>
 <path d="M46 48 Q48 20 75 18 Q102 20 104 48 Q96 36 86 44 Q80 30 72 44 Q62 34 46 48 Z" fill="#4a2f1c" class="o"/>
 <path d="M102 30 L88 22 L92 40 Z" fill="#ff7bac" class="o"/><path d="M102 30 L116 22 L112 40 Z" fill="#ff7bac" class="o"/><circle cx="102" cy="30" r="4" fill="#ff5c8a" class="o"/>
@@ -334,8 +349,10 @@ window.KITZO_CHARACTERS = [
 <ellipse cx="57" cy="64" rx="5" ry="3" fill="#ff8a80" opacity="0.5"/>
 <path d="M55 40 Q62 34 69 39" fill="none" stroke="#2b1a10" stroke-width="2.5" stroke-linecap="round"/>
 <path d="M82 42 Q88 40 94 42" fill="none" stroke="#2b1a10" stroke-width="2.5" stroke-linecap="round"/>
-<circle cx="63" cy="53" r="5.5" fill="#ffffff" class="o"/><circle cx="65" cy="54" r="3" fill="#1a1a2e"/><circle cx="66" cy="52.5" r="1.1" fill="#ffffff"/>
-<circle cx="87" cy="53" r="5.5" fill="#ffffff" class="o"/><circle cx="89" cy="54" r="3" fill="#1a1a2e"/><circle cx="90" cy="52.5" r="1.1" fill="#ffffff"/>
+<g class="eye-open"><circle cx="63" cy="53" r="5.5" fill="#ffffff" class="o"/><circle cx="65" cy="54" r="3" fill="#1a1a2e"/><circle cx="66" cy="52.5" r="1.1" fill="#ffffff"/></g>
+<path class="eye-closed" d="M57 53 Q63 49 69 53" fill="none" stroke="#2b1a10" stroke-width="2.5" stroke-linecap="round"/>
+<g class="eye-open wink-eye"><circle cx="87" cy="53" r="5.5" fill="#ffffff" class="o"/><circle cx="89" cy="54" r="3" fill="#1a1a2e"/><circle cx="90" cy="52.5" r="1.1" fill="#ffffff"/></g>
+<path class="eye-closed wink-eye" d="M81 53 Q87 49 93 53" fill="none" stroke="#2b1a10" stroke-width="2.5" stroke-linecap="round"/>
 <rect x="88" y="62" width="12" height="5" rx="2" fill="#f4d3a0" class="o" transform="rotate(-25 94 64)"/>
 <path d="M62 66 Q75 80 88 66 Z" fill="#7a3b1e" class="o"/><rect x="66" y="66" width="18" height="4" fill="#ffffff"/>
 <path d="M46 44 L50 18 L60 34 L68 10 L76 32 L86 12 L94 34 L104 20 L104 46 Q75 30 46 46 Z" fill="#2b1a10" class="o"/>

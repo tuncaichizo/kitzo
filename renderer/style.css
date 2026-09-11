@@ -91,6 +91,21 @@ html, body {
   animation: walk-bob 0.4s ease-in-out infinite;
 }
 
+/* gozler: normalde acik; kirpma/tek goz kirpma/uyku sirasinda kapali sekil gorunur */
+.eye-closed {
+  opacity: 0;
+}
+.character.blink .eye-open,
+.character.sleeping .eye-open,
+.character.wink .eye-open.wink-eye {
+  opacity: 0;
+}
+.character.blink .eye-closed,
+.character.sleeping .eye-closed,
+.character.wink .eye-closed.wink-eye {
+  opacity: 1;
+}
+
 /* el sallama: kol omuzdan yukari kalkip geri iner */
 .character.wave #arm-right {
   transform-box: fill-box;
