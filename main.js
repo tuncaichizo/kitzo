@@ -8,6 +8,9 @@ const {
   powerMonitor,
   Notification,
   session,
+  Tray,
+  Menu,
+  nativeImage,
 } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -24,6 +27,7 @@ const VOICE_TEST_ARG = '--voice-test=';
 const EXPORT_ICON_ARG = '--export-icon=';
 
 let win;
+let tray;
 let lastMarket = null;
 
 function userFile(name) {
@@ -150,6 +154,50 @@ function notify(title, body) {
   if (Notification.isSupported()) new Notification({ title, body }).show();
 }
 
+function appendVoiceLog(text) {
+  const file = userFile('voice.log');
+  try {
+    if (fs.existsSync(file) && fs.statSync(file).size > 256 * 1024) {
+      fs.rmSync(`${file}.old`, { force: true });
+      fs.renameSync(file, `${file}.old`);
+    }
+  } catch {}
+  fs.appendFile(file, `${new Date().toISOString()} ${text}\n`, () => {});
+}
+
+function openMenuFromOutside() {
+  if (!win) return;
+  win.show();
+  win.focus();
+  send('toggle-menu');
+}
+
+// ---------- sistem tepsisi ----------
+
+function updateTrayMenu() {
+  if (!tray) return;
+  const tr = getLanguage() === 'tr';
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: tr ? 'Menüyü Aç' : 'Open Menu', click: openMenuFromOutside },
+      {
+        label: tr ? 'Göster / Gizle' : 'Show / Hide',
+        click: () => (win.isVisible() ? win.hide() : win.show()),
+      },
+      { type: 'separator' },
+      { label: tr ? 'Çıkış' : 'Quit', click: () => app.quit() },
+    ])
+  );
+}
+
+function createTray() {
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 32, height: 32 });
+  tray = new Tray(icon);
+  tray.setToolTip(APP_NAME);
+  tray.on('click', openMenuFromOutside);
+  updateTrayMenu();
+}
+
 // ---------- pencere ----------
 
 function createWindow() {
@@ -197,6 +245,7 @@ function registerIpc() {
   ipcMain.handle('get-language', () => getLanguage());
   ipcMain.handle('set-language', (_e, lang) => {
     patchSettings({ language: lang === 'tr' ? 'tr' : 'en' });
+    updateTrayMenu();
     return getLanguage();
   });
 
@@ -209,9 +258,7 @@ function registerIpc() {
   ipcMain.handle('voice-model-url', (_e, lang) =>
     voiceModel.ensure(userFile('models'), lang, (p) => send('voice-model-progress', p))
   );
-  ipcMain.on('voice-log', (_e, text) => {
-    fs.appendFile(userFile('voice.log'), `${new Date().toISOString()} ${text}\n`, () => {});
-  });
+  ipcMain.on('voice-log', (_e, text) => appendVoiceLog(String(text)));
   ipcMain.on('voice-ready', async () => {
     const wav = argValue(VOICE_TEST_ARG);
     if (!wav) return;
@@ -256,10 +303,17 @@ function exportIcon(outPath) {
   });
 }
 
+const exportingIcon = Boolean(argValue(EXPORT_ICON_ARG));
+
+// Ayni anda iki Kitzo calismasin; ikinci deneme mevcut olanin menusunu acar.
+if (!exportingIcon && !app.requestSingleInstanceLock()) {
+  app.quit();
+}
+app.on('second-instance', openMenuFromOutside);
+
 app.whenReady().then(() => {
-  const iconOut = argValue(EXPORT_ICON_ARG);
-  if (iconOut) {
-    exportIcon(path.resolve(iconOut));
+  if (exportingIcon) {
+    exportIcon(path.resolve(argValue(EXPORT_ICON_ARG)));
     return;
   }
 
@@ -271,13 +325,9 @@ app.whenReady().then(() => {
   setAutostart(isAutostart());
   registerIpc();
   createWindow();
+  createTray();
 
-  globalShortcut.register('CommandOrControl+Alt+K', () => {
-    if (!win) return;
-    win.show();
-    win.focus();
-    send('toggle-menu');
-  });
+  globalShortcut.register('CommandOrControl+Alt+K', openMenuFromOutside);
 
   market.start((data) => {
     lastMarket = data;

@@ -24,6 +24,7 @@
       "actions.json",
       "lib/**/*",
       "renderer/**/*",
+      "build/icon.png",
       "package.json"
     ],
     "win": {

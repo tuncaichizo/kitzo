@@ -73,12 +73,14 @@
     return hits / words.length;
   }
 
-  function findWake(tokens, names) {
+  // startOnly: yaygin kelimelere benzeyen takma adlar sadece cumlenin basinda kabul edilir
+  function findWake(tokens, names, startOnly) {
     for (let i = 0; i < tokens.length; i++) {
       const pair = i + 1 < tokens.length ? tokens[i] + tokens[i + 1] : null;
       for (const n of names) {
-        if (fuzzyEq(tokens[i], n)) return { index: i, length: 1 };
-        if (pair && fuzzyEq(pair, n)) return { index: i, length: 2 };
+        if (startOnly && startOnly.has(n) && i !== 0) continue;
+        if (fuzzyEq(tokens[i], n)) return { index: i, length: 1, name: n };
+        if (pair && fuzzyEq(pair, n)) return { index: i, length: 2, name: n };
       }
     }
     return null;
@@ -169,7 +171,7 @@
   }
 
   // Mikrofonu dinleyip Vosk'a besler. Sessizlikte CPU harcamamak icin basit bir ses kapisi (gate) var.
-  async function createListener({ modelUrl, onResult, onPartial }) {
+  async function createListener({ modelUrl, onResult, onPartial, onSpeech }) {
     if (!window.Vosk) throw new Error('vosk-browser not loaded');
     const model = await window.Vosk.createModel(modelUrl);
     const ctx = new AudioContext();
@@ -192,6 +194,8 @@
     const node = ctx.createScriptProcessor(4096, 1, 1);
     let noiseFloor = 0.002;
     let activeUntil = 0;
+    let previous = null;
+    let lastSpeechCallback = 0;
     node.onaudioprocess = (e) => {
       const data = e.inputBuffer.getChannelData(0);
       let sum = 0;
@@ -199,14 +203,24 @@
       const rms = Math.sqrt(sum / (data.length / 4));
       if (rms < noiseFloor * 2) noiseFloor = noiseFloor * 0.95 + rms * 0.05;
       const now = performance.now();
-      if (rms > Math.max(0.006, noiseFloor * 3.5)) activeUntil = now + 1800;
+      const wasActive = now < activeUntil;
+      if (rms > Math.max(0.006, noiseFloor * 3.5)) {
+        activeUntil = now + 1800;
+        if (onSpeech && now - lastSpeechCallback > 500) {
+          lastSpeechCallback = now;
+          onSpeech();
+        }
+      }
       if (now < activeUntil) {
         try {
+          // kapi yeni acildiysa bir onceki parcayi da ver ki ilk hece kirpilmasin
+          if (!wasActive && previous) recognizer.acceptWaveformFloat(previous, ctx.sampleRate);
           recognizer.acceptWaveform(e.inputBuffer);
         } catch (err) {
           console.error('acceptWaveform', err);
         }
       }
+      previous = Float32Array.from(data);
     };
     source.connect(node);
     node.connect(ctx.destination);

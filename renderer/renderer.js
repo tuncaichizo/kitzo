@@ -3,14 +3,15 @@ const CHAR_H = 240; // 204 karakter + 36 emote alani
 const OVERLAY_GAP = 8;
 const DRAG_THRESHOLD = 4;
 const WALK_SPEED = 1.6;
-const LISTEN_WINDOW_MS = 8000;
+const LISTEN_WINDOW_MS = 7000; // isim soylendikten sonra komut icin sessizce beklenen sure
+const LISTEN_EXTEND_MS = 4000; // konusma algilandiginda pencere bu kadar uzar
 const NIGHT_END_HOUR = 7;
 const NIGHT_INTERACTION_GRACE_MS = 30 * 60000;
 const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
 
 // Karakterler kendi adlariyla cagrilir; Vosk'un duyabilecegi yakin yazimlar da kabul edilir.
 const WAKE_ALIASES = {
-  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor'],
+  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor'],
   zumi: ['zumi', 'sumi', 'zumu', 'zumii'],
   byto: ['byto', 'bayto', 'bito', 'baytu', 'bayta'],
   fyra: ['fyra', 'fira', 'fayra', 'fira'],
@@ -22,6 +23,8 @@ const WAKE_ALIASES = {
   barkinzo: ['barkınzo', 'barkınso', 'barkinzo', 'barkın', 'barkin'],
   kutucuzo: ['kutucuzo', 'kutucuso', 'kutucu', 'kutuzo', 'korkutucu', 'korkutucuzor', 'kutucuzor'],
 };
+// Gunluk konusmada gecebilen kisa takma adlar: yalnizca cumle basinda uyandirir
+const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu']);
 
 const I18N = window.KITZO_I18N;
 const V = window.KitzoVoice;
@@ -113,6 +116,8 @@ let voiceStarting = false;
 let voiceGeneration = 0;
 let listeningUntil = 0;
 let listenTimer = null;
+let pendingCmd = null; // dinleme sirasinda biriken komut parcalari
+let bubbleTag = null;
 let voiceReadyAnnounced = false;
 
 // ---------- yardimcilar ----------
@@ -324,7 +329,7 @@ function wakeNames() {
 function findWakeAny(tokens) {
   const order = [currentCharId, ...characters.map((c) => c.id).filter((id) => id !== currentCharId)];
   for (const id of order) {
-    const wake = V.findWake(tokens, namesOf(id));
+    const wake = V.findWake(tokens, namesOf(id), START_ONLY_ALIASES);
     if (wake) return { ...wake, id };
   }
   return null;
@@ -573,6 +578,7 @@ function say(text, ms, opts = {}) {
   const duration = ms || Math.min(9000, 2500 + text.length * 70);
   if (bubbleOpen() && opts.replace) {
     bubbleTextEl.textContent = text;
+    bubbleTag = opts.tag || null;
     relayoutOverlay();
     clearTimeout(bubbleTimer);
     bubbleTimer = setTimeout(hideBubble, duration);
@@ -583,6 +589,7 @@ function say(text, ms, opts = {}) {
     return;
   }
   bubbleTextEl.textContent = text;
+  bubbleTag = opts.tag || null;
   openOverlay(bubbleEl);
   clearTimeout(bubbleTimer);
   bubbleTimer = setTimeout(hideBubble, duration);
@@ -590,6 +597,7 @@ function say(text, ms, opts = {}) {
 
 function hideBubble() {
   clearTimeout(bubbleTimer);
+  bubbleTag = null;
   if (bubbleOpen()) closeOverlay();
   flushBubbleQueue();
 }
@@ -614,8 +622,9 @@ function showEmote(symbol, ms = 2200, persistent = false) {
 function hideEmote() {
   clearTimeout(emoteTimer);
   emoteEl.classList.remove('pulse');
-  if (sleeping) {
-    emoteEl.textContent = '💤';
+  const persistent = sleeping ? '💤' : isListening() ? '🎧' : null;
+  if (persistent) {
+    emoteEl.textContent = persistent;
     emoteEl.hidden = false;
     emoteEl.classList.add('pulse');
     return;
@@ -869,7 +878,12 @@ async function startVoice() {
     const url = await window.ichi.getVoiceModelUrl(lang);
     if (generation !== voiceGeneration) return;
     setVoiceStatus(t('statusStarting'));
-    const created = await V.createListener({ modelUrl: url, onResult: onFinalTranscript, onPartial: onPartialTranscript });
+    const created = await V.createListener({
+      modelUrl: url,
+      onResult: onFinalTranscript,
+      onPartial: onPartialTranscript,
+      onSpeech: () => extendListening(LISTEN_EXTEND_MS),
+    });
     if (generation !== voiceGeneration || !micOn) {
       created.stop();
       return;
@@ -899,32 +913,51 @@ function stopVoice() {
   hideListening();
 }
 
-function showListening() {
-  listeningUntil = Date.now() + LISTEN_WINDOW_MS;
-  showEmote('🎧', 0, true);
-  if (!menuOpen()) say(line('listening'), LISTEN_WINDOW_MS, { replace: true });
-  clearTimeout(listenTimer);
-  listenTimer = setTimeout(() => {
-    if (listeningUntil && Date.now() >= listeningUntil) {
-      listeningUntil = 0;
-      hideEmote();
-      hideBubble();
-    }
-  }, LISTEN_WINDOW_MS + 200);
+function isListening() {
+  return listeningUntil > Date.now();
 }
 
-function hideListening() {
+// Isim duyuldu: komut icin sessizce bekle (soru sorma), konusma geldikce sureyi uzat.
+function startListening() {
+  listeningUntil = Date.now() + LISTEN_WINDOW_MS;
+  pendingCmd = { tokens: [], raw: [] };
+  showEmote('🎧', 0, true);
+  if (!menuOpen()) say(line('listening'), LISTEN_WINDOW_MS + 2000, { replace: true, tag: 'listening' });
+  armListenTimer();
+}
+
+function extendListening(ms) {
+  if (!isListening()) return;
+  listeningUntil = Math.max(listeningUntil, Date.now() + ms);
+  armListenTimer();
+}
+
+function armListenTimer() {
+  clearTimeout(listenTimer);
+  listenTimer = setTimeout(() => {
+    if (!listeningUntil) return;
+    if (Date.now() < listeningUntil) {
+      armListenTimer();
+      return;
+    }
+    stopListening();
+  }, Math.max(50, listeningUntil - Date.now() + 100));
+}
+
+function stopListening() {
   listeningUntil = 0;
+  pendingCmd = null;
   clearTimeout(listenTimer);
   hideEmote();
+  if (bubbleOpen() && bubbleTag === 'listening') hideBubble();
 }
 
 function onPartialTranscript(text) {
-  if (listeningUntil > Date.now()) return;
+  if (isListening()) return;
   const { tokens } = V.tokenize(text);
-  if (V.findWake(tokens, wakeNames())) {
+  if (V.findWake(tokens, wakeNames(), START_ONLY_ALIASES)) {
     if (sleeping) wakeUp('voice');
-    showListening();
+    startListening();
   }
 }
 
@@ -934,36 +967,52 @@ function onFinalTranscript(text) {
   if (!tokens.length) return;
 
   const wake = findWakeAny(tokens);
-  let cmd;
-  let rawCmd;
-  let summoned = false;
   if (wake) {
-    cmd = tokens.slice(wake.index + wake.length);
-    rawCmd = raw.slice(wake.index + wake.length);
+    lastInteraction = Date.now();
+    if (sleeping) wakeUp('voice');
+    let summoned = false;
     if (wake.id !== currentCharId) {
-      if (sleeping) wakeUp('voice');
       summon(wake.id);
       summoned = true;
-      if (!cmd.length) return;
     }
-  } else if (listeningUntil > Date.now()) {
-    cmd = tokens;
-    rawCmd = raw;
-  } else {
+    const cmd = tokens.slice(wake.index + wake.length);
+    const rawCmd = raw.slice(wake.index + wake.length);
+    if (!cmd.length) {
+      startListening();
+      return;
+    }
+    // Isim ve komut ayni cumlede geldi
+    const handled = runVoiceCommand(cmd, rawCmd);
+    if (handled) {
+      stopListening();
+      return;
+    }
+    if (summoned) {
+      startListening();
+      return;
+    }
+    stopListening();
+    showEmote('🤔', 2500);
+    say(line('unknown'), 4500, { replace: true });
     return;
   }
 
+  if (!isListening()) return;
+
+  // Dinleme penceresindeyiz: parcalari biriktir, tamamini dene, olmadiysa beklemeye devam et
   lastInteraction = Date.now();
-  if (sleeping) wakeUp('voice');
-  if (!cmd.length) {
-    showListening();
+  pendingCmd.tokens.push(...tokens);
+  pendingCmd.raw.push(...raw);
+  if (runVoiceCommand(pendingCmd.tokens, pendingCmd.raw)) {
+    stopListening();
     return;
   }
-  hideListening();
-  runVoiceCommand(cmd, rawCmd, { quietUnknown: summoned });
+  showEmote('🤔', 1500);
+  extendListening(LISTEN_EXTEND_MS);
 }
 
-function runVoiceCommand(tokens, rawTokens, opts = {}) {
+// Komutu calistirir; taninmadiysa false doner (soru sormak cagiranin karari).
+function runVoiceCommand(tokens, rawTokens) {
   const vc = T.voice;
   const has = (words) => V.hasWord(tokens, words);
   window.ichi.voiceLog(`COMMAND: ${tokens.join(' ')}`);
@@ -971,74 +1020,74 @@ function runVoiceCommand(tokens, rawTokens, opts = {}) {
   if (tokens.some((tok) => vc.reminder.some((r) => tok.startsWith(V.normalize(r))))) {
     const r = V.parseReminder(tokens, rawTokens, vc);
     addReminder(r.minutes, r.note, true);
-    return;
+    return true;
   }
   if (has(vc.help)) {
     say(line('help'), 9000, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.mic) && has(vc.off)) {
     say(line('micOffSay'), 4000, { replace: true });
     setTimeout(() => setMic(false), 1500);
-    return;
+    return true;
   }
   if (has(vc.quit) || (has(vc.app) && has(vc.off))) {
     say(line('bye'), 2000, { replace: true });
     setTimeout(() => window.ichi.quitApp(), 1800);
-    return;
+    return true;
   }
   if (has(vc.market)) {
     showMarket();
-    return;
+    return true;
   }
   if (has(vc.corner)) {
     say(line('corner'), 2500, { replace: true });
     setTimeout(goToCorner, 600);
-    return;
+    return true;
   }
   if (has(vc.stay)) {
     setStay(true);
     showEmote('🪑', 2500);
     say(line('stayed'), 3000, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.wander)) {
     setStay(false);
     showEmote('🚶', 2500);
     say(line('wandering'), 3000, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.sleep)) {
     say(line('sleep'), 2500, { replace: true });
     setTimeout(() => sleep('voice'), 900);
-    return;
+    return true;
   }
   if (has(vc.wake)) {
     say(line('awake'), 2500, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.menu)) {
     openMenu();
-    return;
+    return true;
   }
   if (has(vc.quiet)) {
     quietUntil = Date.now() + 3600000;
     say(line('quiet'), 3000, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.hello)) {
     showEmote('👋', 2500);
     say(line('hello'), 3500, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.thanks)) {
     showEmote('😊', 2500);
     say(line('thanks'), 3000, { replace: true });
-    return;
+    return true;
   }
   if (has(vc.who)) {
     say(line('whoAmI'), 4000, { replace: true });
-    return;
+    return true;
   }
 
   const action = matchAction(tokens);
@@ -1047,13 +1096,9 @@ function runVoiceCommand(tokens, rawTokens, opts = {}) {
     jump();
     say(line('actionDone', { label: action.label }), 3000, { replace: true });
     window.ichi.runAction(action.id);
-    return;
+    return true;
   }
-
-  // Karakter yeni cagrildiysa arta kalan anlamsiz kelimeler icin sikayet etme
-  if (opts.quietUnknown) return;
-  showEmote('🤔', 2500);
-  say(line('unknown'), 4500, { replace: true });
+  return false;
 }
 
 // ---------- olaylar ----------
