@@ -1,10 +1,13 @@
 const CHAR_W = 170;
 const CHAR_H = 240; // 204 karakter + 36 emote alani
 const OVERLAY_GAP = 8;
-const DRAG_THRESHOLD = 4;
+const DRAG_THRESHOLD = 8;
 const WALK_SPEED = 1.6;
 const LISTEN_WINDOW_MS = 7000; // isim soylendikten sonra komut icin sessizce beklenen sure
 const LISTEN_EXTEND_MS = 4000; // konusma algilandiginda pencere bu kadar uzar
+const LISTEN_MAX_MS = 15000; // uzatmalarla birlikte toplam ust sinir
+const MAX_UTTERANCE_TOKENS = 10; // daha uzunu arka plan konusmasi sayilir
+const MAX_PENDING_TOKENS = 14;
 const NIGHT_END_HOUR = 7;
 const NIGHT_INTERACTION_GRACE_MS = 30 * 60000;
 const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
@@ -42,6 +45,7 @@ const menuStatusEl = $('menu-status');
 const actionsEl = $('menu-actions');
 const closeBtn = $('btn-close-menu');
 const marketBtn = $('btn-market');
+const listenBtn = $('btn-listen');
 const remindersBtn = $('btn-reminders');
 const actionsBtn = $('btn-actions');
 const stayBtn = $('btn-stay');
@@ -52,6 +56,7 @@ const settingsBtn = $('btn-settings');
 const charListEl = $('character-list');
 const languageBtn = $('btn-language');
 const micBtn = $('btn-mic');
+const teachBtn = $('btn-teach');
 const autostartBtn = $('btn-autostart');
 const shortcutsBtn = $('btn-shortcuts');
 const sleepBtn = $('btn-sleep');
@@ -87,7 +92,7 @@ let dragging = false;
 let dragMoved = false;
 let dragStartMouse = null;
 let dragStartPos = null;
-let clickTimes = [];
+let hovering = false;
 
 let overlay = null; // { el, extra, below }
 let bubbleTimer = null;
@@ -115,6 +120,7 @@ let listener = null;
 let voiceStarting = false;
 let voiceGeneration = 0;
 let listeningUntil = 0;
+let listeningStartedAt = 0;
 let listenTimer = null;
 let pendingCmd = null; // dinleme sirasinda biriken komut parcalari
 let bubbleTag = null;
@@ -258,9 +264,13 @@ function bindIpc() {
     if (p.stage === 'download') setVoiceStatus(t('statusDownloading', { p: Math.round((p.value || 0) * 100) }));
     else setVoiceStatus(t('statusPreparing'));
   });
-  window.ichi.onVoiceTest(({ url }) => {
-    if (listener) listener.feedUrl(url);
+  window.ichi.onVoiceTest(({ url, teach, char }) => {
+    if (!listener) return;
+    if (char) loadCharacter(char);
+    if (teach) startTeaching();
+    setTimeout(() => listener.feedUrl(url), 800);
   });
+  window.ichi.onListenNow(listenNow);
 }
 
 // ---------- dil ----------
@@ -315,24 +325,98 @@ function renderCharacterList() {
   }
 }
 
+// Kullanicinin "Adimi Ogret" ile kaydettigi, kendi sesinden duyulan yazimlar
+function learnedAliases(id) {
+  try {
+    const list = JSON.parse(localStorage.getItem(`aliases:${id}`) || '[]');
+    // cok kisa yazimlar ("git" gibi) gunluk kelimelerle karisir, kullanilmaz
+    return Array.isArray(list) ? list.filter((a) => typeof a === 'string' && a.length >= 4) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLearnedAliases(id, list) {
+  saveItem(`aliases:${id}`, JSON.stringify(list.slice(-12)));
+}
+
 function namesOf(id) {
   const c = characters.find((x) => x.id === id);
-  const names = new Set([...(WAKE_ALIASES[id] || []), id, c ? c.name : '']);
+  const names = new Set([...(WAKE_ALIASES[id] || []), id, c ? c.name : '', ...learnedAliases(id)]);
   return [...names].map(V.normalize).filter(Boolean);
 }
 
-function wakeNames() {
-  return namesOf(currentCharId);
+// Kisa ogrenilmis yazimlar da yalnizca cumle basinda gecerli
+function startOnlyFor(id) {
+  const set = new Set(START_ONLY_ALIASES);
+  for (const a of learnedAliases(id)) if (a.length <= 4) set.add(a);
+  return set;
 }
 
 // Herhangi bir karakterin adi soylenirse o karakter cagrilir (once mevcut karakter denenir).
 function findWakeAny(tokens) {
   const order = [currentCharId, ...characters.map((c) => c.id).filter((id) => id !== currentCharId)];
   for (const id of order) {
-    const wake = V.findWake(tokens, namesOf(id), START_ONLY_ALIASES);
+    const wake = V.findWake(tokens, namesOf(id), startOnlyFor(id));
     if (wake) return { ...wake, id };
   }
+  // "-zo" ile biten adlar taniyici tarafindan cok farkli yazilabiliyor ("hiç zor", "peki zor");
+  // ilk kelime(ler) zo/zor ile bitiyorsa mevcut karakter cagrilmis say.
+  if (/zo$/.test(currentCharId) && tokens.length) {
+    if (/zor?$/.test(tokens[0])) return { index: 0, length: 1, name: tokens[0], id: currentCharId };
+    if (tokens.length > 1 && tokens[1].length <= 4 && /zor?$/.test(tokens[0] + tokens[1])) {
+      return { index: 0, length: 2, name: tokens[0] + tokens[1], id: currentCharId };
+    }
+  }
   return null;
+}
+
+// ---------- adimi ogret ----------
+
+let teaching = null; // { samples: [], until }
+
+function startTeaching() {
+  if (!micOn || !listener) {
+    setMic(true);
+    say(t('statusPreparing'), 3000, { replace: true });
+    return;
+  }
+  if (menuOpen()) closeMenu();
+  stopListening();
+  teaching = { samples: [], until: Date.now() + 25000 };
+  showEmote('🎙️', 0, true);
+  say(line('teachStart'), 25000, { replace: true, tag: 'teach' });
+  setTimeout(() => {
+    if (teaching && Date.now() >= teaching.until) finishTeaching();
+  }, 25500);
+}
+
+function finishTeaching() {
+  const samples = teaching ? teaching.samples : [];
+  teaching = null;
+  hideEmote();
+  if (!samples.length) {
+    say(line('teachNone'), 4000, { replace: true });
+    return;
+  }
+  const learned = learnedAliases(currentCharId);
+  for (const s of samples) if (!learned.includes(s)) learned.push(s);
+  saveLearnedAliases(currentCharId, learned);
+  say(line('teachDone', { heard: samples.join(', ') }), 7000, { replace: true });
+}
+
+function onTeachingTranscript(tokens) {
+  if (tokens.length > 3) return;
+  const sample = tokens.join('');
+  if (sample.length < 4) return;
+  teaching.samples.push(sample);
+  showEmote('✅', 1200);
+  if (teaching.samples.length >= 3) {
+    finishTeaching();
+    return;
+  }
+  teaching.until = Date.now() + 20000;
+  say(line('teachMore', { n: 3 - teaching.samples.length }), 20000, { replace: true, tag: 'teach' });
 }
 
 function summon(id) {
@@ -367,7 +451,7 @@ function scheduleNextMove() {
   if (stay) return;
   const idleDelay = 2500 + Math.random() * 5000;
   moveTimer = setTimeout(() => {
-    if (dragging || menuOpen() || sleeping || stay) {
+    if (dragging || menuOpen() || sleeping || stay || hovering) {
       scheduleNextMove();
       return;
     }
@@ -401,7 +485,7 @@ function walkTo(targetX, targetY, done) {
 
   clearInterval(walkTick);
   walkTick = setInterval(() => {
-    if (dragging || menuOpen() || sleeping) {
+    if (dragging || menuOpen() || sleeping || hovering) {
       clearInterval(walkTick);
       setIdle();
       scheduleNextMove();
@@ -450,6 +534,17 @@ function goToCorner() {
 
 // ---------- surukleme / tiklama ----------
 
+// Fare karakterin ustundeyken yurumesin; kullanici tiklamaya calisirken kacmasin.
+charEl.addEventListener('mouseenter', () => {
+  hovering = true;
+  clearInterval(walkTick);
+  setIdle();
+});
+charEl.addEventListener('mouseleave', () => {
+  hovering = false;
+  if (!dragging) scheduleNextMove();
+});
+
 charEl.addEventListener('mousedown', (e) => {
   dragging = true;
   dragMoved = false;
@@ -484,26 +579,12 @@ window.addEventListener('mouseup', () => {
   lastInteraction = Date.now();
 
   if (dragMoved) {
-    showEmote('😌', 2000);
-    if (!menuOpen()) say(line('drop'), 2500);
+    hideEmote();
     scheduleNextMove();
     return;
   }
-  if (sleeping) {
-    wakeUp('click');
-    return;
-  }
-
-  const now = Date.now();
-  clickTimes = clickTimes.filter((ts) => ts > now - 4000);
-  clickTimes.push(now);
-  if (clickTimes.length >= 5) {
-    clickTimes = [];
-    if (menuOpen()) closeMenu();
-    showEmote('💢', 2500);
-    say(line('annoyed'), 3000, { replace: true });
-    return;
-  }
+  // Tiklama her zaman menuyu acar/kapatir; uyuyorsa sessizce uyanir.
+  if (sleeping) wakeUp('click');
   toggleMenu();
 });
 
@@ -622,7 +703,7 @@ function showEmote(symbol, ms = 2200, persistent = false) {
 function hideEmote() {
   clearTimeout(emoteTimer);
   emoteEl.classList.remove('pulse');
-  const persistent = sleeping ? '💤' : isListening() ? '🎧' : null;
+  const persistent = sleeping ? '💤' : teaching ? '🎙️' : isListening() ? '🎧' : null;
   if (persistent) {
     emoteEl.textContent = persistent;
     emoteEl.hidden = false;
@@ -654,7 +735,7 @@ function wakeUp(cause) {
   charEl.classList.remove('sleeping');
   hideEmote();
   updateSleepButton();
-  if (cause !== 'reminder') say(line('wake'), 3000);
+  if (cause === 'voice' || cause === 'morning' || cause === 'idle-end') say(line('wake'), 3000);
   scheduleNextMove();
 }
 
@@ -919,7 +1000,8 @@ function isListening() {
 
 // Isim duyuldu: komut icin sessizce bekle (soru sorma), konusma geldikce sureyi uzat.
 function startListening() {
-  listeningUntil = Date.now() + LISTEN_WINDOW_MS;
+  listeningStartedAt = Date.now();
+  listeningUntil = listeningStartedAt + LISTEN_WINDOW_MS;
   pendingCmd = { tokens: [], raw: [] };
   showEmote('🎧', 0, true);
   if (!menuOpen()) say(line('listening'), LISTEN_WINDOW_MS + 2000, { replace: true, tag: 'listening' });
@@ -928,8 +1010,22 @@ function startListening() {
 
 function extendListening(ms) {
   if (!isListening()) return;
-  listeningUntil = Math.max(listeningUntil, Date.now() + ms);
+  const cap = listeningStartedAt + LISTEN_MAX_MS;
+  listeningUntil = Math.min(cap, Math.max(listeningUntil, Date.now() + ms));
   armListenTimer();
+}
+
+// Bas-konus: isim soylemeden dogrudan komut icin (Ctrl+Alt+L veya menudeki Dinle)
+function listenNow() {
+  if (!micOn || !listener) {
+    setMic(true);
+    say(t('statusPreparing'), 3000, { replace: true });
+    return;
+  }
+  lastInteraction = Date.now();
+  if (sleeping) wakeUp('hotkey');
+  if (menuOpen()) closeMenu();
+  startListening();
 }
 
 function armListenTimer() {
@@ -953,9 +1049,11 @@ function stopListening() {
 }
 
 function onPartialTranscript(text) {
-  if (isListening()) return;
+  if (isListening() || teaching) return;
   const { tokens } = V.tokenize(text);
-  if (V.findWake(tokens, wakeNames(), START_ONLY_ALIASES)) {
+  if (tokens.length > MAX_UTTERANCE_TOKENS) return;
+  const wake = findWakeAny(tokens);
+  if (wake && wake.id === currentCharId) {
     if (sleeping) wakeUp('voice');
     startListening();
   }
@@ -965,6 +1063,12 @@ function onFinalTranscript(text) {
   window.ichi.voiceLog(`HEARD: ${text}`);
   const { tokens, raw } = V.tokenize(text);
   if (!tokens.length) return;
+  if (teaching) {
+    onTeachingTranscript(tokens);
+    return;
+  }
+  // Uzun cumleler TV/video gibi arka plan konusmasidir; komut olarak degerlendirilmez
+  if (tokens.length > MAX_UTTERANCE_TOKENS) return;
 
   const wake = findWakeAny(tokens);
   if (wake) {
@@ -1004,6 +1108,10 @@ function onFinalTranscript(text) {
   pendingCmd.tokens.push(...tokens);
   pendingCmd.raw.push(...raw);
   if (runVoiceCommand(pendingCmd.tokens, pendingCmd.raw)) {
+    stopListening();
+    return;
+  }
+  if (pendingCmd.tokens.length > MAX_PENDING_TOKENS) {
     stopListening();
     return;
   }
@@ -1107,6 +1215,7 @@ marketBtn.addEventListener('click', () => {
   closeMenu();
   showMarket();
 });
+listenBtn.addEventListener('click', listenNow);
 remindersBtn.addEventListener('click', () => {
   renderReminderList();
   showSection('reminders');
@@ -1144,6 +1253,7 @@ for (const btn of document.querySelectorAll('.btn-back')) {
 
 languageBtn.addEventListener('click', () => setLanguage(lang === 'tr' ? 'en' : 'tr'));
 micBtn.addEventListener('click', () => setMic(!micOn));
+teachBtn.addEventListener('click', startTeaching);
 autostartBtn.addEventListener('click', async () => {
   const on = await window.ichi.getAutostart();
   await window.ichi.setAutostart(!on);

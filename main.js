@@ -263,7 +263,7 @@ function registerIpc() {
     const wav = argValue(VOICE_TEST_ARG);
     if (!wav) return;
     const url = await voiceModel.publish(wav, 'voice-test.wav');
-    if (url) send('voice-test', { url });
+    if (url) send('voice-test', { url, teach: process.argv.includes('--voice-teach'), char: argValue('--char=') });
   });
 
   ipcMain.on('quit-app', () => app.quit());
@@ -328,6 +328,7 @@ app.whenReady().then(() => {
   createTray();
 
   globalShortcut.register('CommandOrControl+Alt+K', openMenuFromOutside);
+  globalShortcut.register('CommandOrControl+Alt+L', () => send('listen-now'));
 
   market.start((data) => {
     lastMarket = data;

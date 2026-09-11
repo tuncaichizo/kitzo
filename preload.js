@@ -31,4 +31,5 @@ contextBridge.exposeInMainWorld('ichi', {
   onSystemIdle: on('system-idle'),
   onVoiceProgress: on('voice-model-progress'),
   onVoiceTest: on('voice-test'),
+  onListenNow: on('listen-now'),
 });

@@ -73,14 +73,22 @@
     return hits / words.length;
   }
 
-  // startOnly: yaygin kelimelere benzeyen takma adlar sadece cumlenin basinda kabul edilir
-  function findWake(tokens, names, startOnly) {
-    for (let i = 0; i < tokens.length; i++) {
+  // Uyandirma sozcukleri icin siki eslesme: kisa adlarda birebir, uzunlarda en fazla 1 harf farki.
+  function wakeEq(token, name) {
+    if (token === name) return true;
+    if (name.length < 5 || Math.abs(token.length - name.length) > 1) return false;
+    return levenshtein(token, name) <= 1;
+  }
+
+  // Ad yalnizca cumlenin basinda (ilk iki kelime icinde) aranir; startOnly adlar sadece ilk kelime olabilir.
+  function findWake(tokens, names, startOnly, maxIndex = 1) {
+    const limit = Math.min(tokens.length - 1, maxIndex);
+    for (let i = 0; i <= limit; i++) {
       const pair = i + 1 < tokens.length ? tokens[i] + tokens[i + 1] : null;
       for (const n of names) {
         if (startOnly && startOnly.has(n) && i !== 0) continue;
-        if (fuzzyEq(tokens[i], n)) return { index: i, length: 1, name: n };
-        if (pair && fuzzyEq(pair, n)) return { index: i, length: 2, name: n };
+        if (wakeEq(tokens[i], n)) return { index: i, length: 1, name: n };
+        if (pair && wakeEq(pair, n)) return { index: i, length: 2, name: n };
       }
     }
     return null;

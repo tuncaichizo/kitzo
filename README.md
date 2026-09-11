@@ -16,7 +16,7 @@ Everything runs **locally and for free** — no accounts, no API keys.
 - **Personality** – time-of-day greetings, random quips, reactions to dragging and click spam, sleeps at night or when you're away.
 - **Actions** – stay / wander, go to corner, wave, sleep.
 - **Multi-monitor** – drag it to any screen.
-- **Global hotkey** – `Ctrl+Alt+K` opens the menu anywhere.
+- **Global hotkeys** – `Ctrl+Alt+K` opens the menu anywhere; `Ctrl+Alt+L` listens for a command right away (no wake word needed — handy in noisy rooms).
 - **Turkish / English** UI and voice.
 
 ## Install (Windows)
