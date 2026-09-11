@@ -56,6 +56,7 @@ const settingsBtn = $('btn-settings');
 const charListEl = $('character-list');
 const languageBtn = $('btn-language');
 const micBtn = $('btn-mic');
+const micDeviceBtn = $('btn-mic-device');
 const teachBtn = $('btn-teach');
 const autostartBtn = $('btn-autostart');
 const shortcutsBtn = $('btn-shortcuts');
@@ -283,6 +284,7 @@ function applyLanguage() {
   for (const el of document.querySelectorAll('[data-i18n-ph]')) el.placeholder = t(el.dataset.i18nPh);
   languageBtn.textContent = t('language');
   updateMicButton();
+  updateMicDeviceButton(listener ? listener.deviceLabel : '');
   updateSleepButton();
   updateStayButton();
   refreshAutostart();
@@ -537,6 +539,7 @@ function walkTo(targetX, targetY, done) {
 function setStay(on) {
   stay = on;
   saveItem('stay', on ? '1' : '0');
+  window.ichi.voiceLog(`STAY: ${on ? 'on' : 'off'}`);
   updateStayButton();
   if (on) {
     clearTimeout(moveTimer);
@@ -786,6 +789,14 @@ function updateSleepButton() {
 
 function minuteTick() {
   checkSleep();
+  if (listener) {
+    const s = listener.readStats();
+    window.ichi.voiceLog(
+      `VOICE: alive frames=${s.frames} speech=${s.speechFrames} peak=${s.peak.toFixed(4)} floor=${s.noiseFloor.toFixed(4)} stay=${stay ? 1 : 0} sleeping=${sleeping ? 1 : 0}`
+    );
+  } else if (!micOn) {
+    window.ichi.voiceLog('VOICE: mic is off');
+  }
   if (sleeping || overlay || Date.now() < quietUntil) return;
   const roll = Math.random();
   if (roll < 0.14) say(line('quips'));
@@ -966,9 +977,38 @@ function updateMicButton() {
 function setMic(on) {
   micOn = on;
   saveItem('mic', on ? '1' : '0');
+  window.ichi.voiceLog(`VOICE: mic ${on ? 'on' : 'off'} (user)`);
   updateMicButton();
   if (on) startVoice();
   else stopVoice();
+}
+
+// Mikrofon cihazi secimi: butona her basista siradaki giris cihazina gecer
+function shortLabel(label) {
+  const s = String(label || '').replace(/\s*\(.*?\)\s*$/, '').trim();
+  return s.length > 22 ? `${s.slice(0, 21)}…` : s;
+}
+
+function updateMicDeviceButton(label) {
+  micDeviceBtn.textContent = t('micDevice', { name: shortLabel(label) || t('micDefault') });
+}
+
+async function cycleMicDevice() {
+  let mics = [];
+  try {
+    mics = await V.listMicrophones();
+  } catch {}
+  if (!mics.length) return;
+  const current = savedItem('micDevice') || '';
+  const idx = mics.findIndex((m) => m.id === current);
+  const next = mics[(idx + 1) % mics.length];
+  saveItem('micDevice', next.id);
+  window.ichi.voiceLog(`VOICE: mic device -> "${next.label}"`);
+  updateMicDeviceButton(next.label);
+  if (micOn) {
+    stopVoice();
+    startVoice();
+  }
 }
 
 // ---------- ses ----------
@@ -991,6 +1031,7 @@ async function startVoice() {
       onResult: onFinalTranscript,
       onPartial: onPartialTranscript,
       onSpeech: () => extendListening(LISTEN_EXTEND_MS),
+      deviceId: savedItem('micDevice') || '',
     });
     if (generation !== voiceGeneration || !micOn) {
       created.stop();
@@ -998,6 +1039,8 @@ async function startVoice() {
     }
     listener = created;
     setVoiceStatus(t('statusListening'));
+    window.ichi.voiceLog(`VOICE: listening lang=${lang} input="${created.deviceLabel}" rate=${created.sampleRate}`);
+    updateMicDeviceButton(created.deviceLabel);
     if (!voiceReadyAnnounced) {
       voiceReadyAnnounced = true;
       say(line('ready'));
@@ -1281,6 +1324,7 @@ for (const btn of document.querySelectorAll('.btn-back')) {
 
 languageBtn.addEventListener('click', () => setLanguage(lang === 'tr' ? 'en' : 'tr'));
 micBtn.addEventListener('click', () => setMic(!micOn));
+micDeviceBtn.addEventListener('click', cycleMicDevice);
 teachBtn.addEventListener('click', startTeaching);
 autostartBtn.addEventListener('click', async () => {
   const on = await window.ichi.getAutostart();

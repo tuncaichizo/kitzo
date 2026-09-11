@@ -179,7 +179,15 @@
   }
 
   // Mikrofonu dinleyip Vosk'a besler. Sessizlikte CPU harcamamak icin basit bir ses kapisi (gate) var.
-  async function createListener({ modelUrl, onResult, onPartial, onSpeech }) {
+  // Kullanilabilir mikrofonlar (etiketler izin verildikten sonra gorunur)
+  async function listMicrophones() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter((d) => d.kind === 'audioinput')
+      .map((d) => ({ id: d.deviceId, label: d.label || d.deviceId.slice(0, 8) }));
+  }
+
+  async function createListener({ modelUrl, onResult, onPartial, onSpeech, deviceId }) {
     if (!window.Vosk) throw new Error('vosk-browser not loaded');
     const model = await window.Vosk.createModel(modelUrl);
     const ctx = new AudioContext();
@@ -194,16 +202,24 @@
       if (text.trim()) onPartial(text);
     });
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: false,
-      audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-    });
+    const audio = { echoCancellation: true, noiseSuppression: true, channelCount: 1 };
+    if (deviceId) audio.deviceId = { exact: deviceId };
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: false, audio });
+    } catch (err) {
+      if (!deviceId) throw err;
+      // secili cihaz yoksa varsayilana dus
+      delete audio.deviceId;
+      stream = await navigator.mediaDevices.getUserMedia({ video: false, audio });
+    }
     const source = ctx.createMediaStreamSource(stream);
     const node = ctx.createScriptProcessor(4096, 1, 1);
     let noiseFloor = 0.002;
     let activeUntil = 0;
     let previous = null;
     let lastSpeechCallback = 0;
+    const stats = { frames: 0, speechFrames: 0, peak: 0 };
     node.onaudioprocess = (e) => {
       const data = e.inputBuffer.getChannelData(0);
       let sum = 0;
@@ -212,7 +228,10 @@
       if (rms < noiseFloor * 2) noiseFloor = noiseFloor * 0.95 + rms * 0.05;
       const now = performance.now();
       const wasActive = now < activeUntil;
+      stats.frames++;
+      if (rms > stats.peak) stats.peak = rms;
       if (rms > Math.max(0.006, noiseFloor * 3.5)) {
+        stats.speechFrames++;
         activeUntil = now + 1800;
         if (onSpeech && now - lastSpeechCallback > 500) {
           lastSpeechCallback = now;
@@ -233,7 +252,18 @@
     source.connect(node);
     node.connect(ctx.destination);
 
+    const track = stream.getAudioTracks()[0];
     return {
+      deviceLabel: track ? track.label : '',
+      sampleRate: ctx.sampleRate,
+      // Teshis icin: son okumadan beri kac ses karesi geldi, kaci konusma sayildi, en yuksek seviye
+      readStats() {
+        const out = { ...stats, noiseFloor };
+        stats.frames = 0;
+        stats.speechFrames = 0;
+        stats.peak = 0;
+        return out;
+      },
       stop() {
         try {
           node.disconnect();
@@ -261,5 +291,5 @@
     };
   }
 
-  window.KitzoVoice = { normalize, tokenize, fuzzyEq, hasWord, phraseScore, findWake, parseReminder, createListener };
+  window.KitzoVoice = { normalize, tokenize, fuzzyEq, hasWord, phraseScore, findWake, parseReminder, createListener, listMicrophones };
 })();
