@@ -14,7 +14,7 @@ const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
 
 // Karakterler kendi adlariyla cagrilir; Vosk'un duyabilecegi yakin yazimlar da kabul edilir.
 const WAKE_ALIASES = {
-  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso'],
+  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso', 'kızı', 'kitzi', 'kizzi'],
   zumi: ['zumi', 'sumi', 'zumu', 'zumii'],
   byto: ['byto', 'bayto', 'bito', 'baytu', 'bayta'],
   fyra: ['fyra', 'fira', 'fayra', 'fira'],
@@ -27,7 +27,7 @@ const WAKE_ALIASES = {
   kutucuzo: ['kutucuzo', 'kutucuso', 'kutucu', 'kutuzo', 'korkutucu', 'korkutucuzor', 'kutucuzor'],
 };
 // Gunluk konusmada gecebilen kisa takma adlar: yalnizca cumle basinda uyandirir
-const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu']);
+const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi']);
 
 const I18N = window.KITZO_I18N;
 const V = window.KitzoVoice;
@@ -909,7 +909,7 @@ function minuteTick() {
   if (listener) {
     const s = listener.readStats();
     window.ichi.voiceLog(
-      `VOICE: alive frames=${s.frames} speech=${s.speechFrames} peak=${s.peak.toFixed(4)} floor=${s.noiseFloor.toFixed(4)} level=${s.speechLevel.toFixed(4)} stay=${stay ? 1 : 0} sleeping=${sleeping ? 1 : 0}`
+      `VOICE: alive frames=${s.frames} speech=${s.speechFrames} peak=${s.peak.toFixed(4)} floor=${s.noiseFloor.toFixed(4)} level=${s.speechLevel.toFixed(4)} ambient=${(s.ambient || 0).toFixed(4)} stay=${stay ? 1 : 0} sleeping=${sleeping ? 1 : 0}`
     );
   } else if (!micOn) {
     window.ichi.voiceLog('VOICE: mic is off');

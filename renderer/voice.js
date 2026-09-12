@@ -242,6 +242,7 @@
     const source = ctx.createMediaStreamSource(stream);
     const node = ctx.createScriptProcessor(4096, 1, 1);
     let noiseFloor = 0.002;
+    let ambient = 0.002; // surekli arka plan sesi (TV/muzik) icin yavas ortalama
     let activeUntil = 0;
     let previous = null;
     let lastSpeechCallback = 0;
@@ -253,11 +254,14 @@
       for (let i = 0; i < data.length; i += 4) sum += data[i] * data[i];
       const rms = Math.sqrt(sum / (data.length / 4));
       if (rms < noiseFloor * 2) noiseFloor = noiseFloor * 0.95 + rms * 0.05;
+      // ortam seviyesi yaklasik 8 saniyelik ortalama; konusma bunun belirgin ustune cikmali
+      ambient = ambient * 0.985 + rms * 0.015;
       const now = performance.now();
       const wasActive = now < activeUntil;
       stats.frames++;
       if (rms > stats.peak) stats.peak = rms;
-      if (rms > Math.max(0.003, noiseFloor * 4)) {
+      const threshold = Math.max(0.003, noiseFloor * 4, wasActive ? ambient * 0.9 : ambient * 1.6);
+      if (rms > threshold) {
         stats.speechFrames++;
         activeUntil = now + 1800;
         speechLevel = speechLevel * 0.9 + rms * 0.1;
@@ -290,7 +294,7 @@
       sampleRate: ctx.sampleRate,
       // Teshis icin: son okumadan beri kac ses karesi geldi, kaci konusma sayildi, en yuksek seviye
       readStats() {
-        const out = { ...stats, noiseFloor, speechLevel };
+        const out = { ...stats, noiseFloor, speechLevel, ambient };
         stats.frames = 0;
         stats.speechFrames = 0;
         stats.peak = 0;
