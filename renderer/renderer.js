@@ -58,6 +58,7 @@ const languageBtn = $('btn-language');
 const micBtn = $('btn-mic');
 const micDeviceBtn = $('btn-mic-device');
 const teachBtn = $('btn-teach');
+const feedbackBtn = $('btn-feedback');
 const autostartBtn = $('btn-autostart');
 const shortcutsBtn = $('btn-shortcuts');
 const sleepBtn = $('btn-sleep');
@@ -126,6 +127,9 @@ let listenTimer = null;
 let pendingCmd = null; // dinleme sirasinda biriken komut parcalari
 let bubbleTag = null;
 let voiceReadyAnnounced = false;
+let feedback = true; // "Duydum: ..." geri bildirimi
+let pendingWakeAlias = null; // sezgiyle eslesen isim yazimi; komut basarili olursa ogrenilir
+let reminderParts = null; // { free, grammar, timer } — iki taniyicidan gelen hatirlatici parcalari
 
 // ---------- yardimcilar ----------
 
@@ -211,6 +215,7 @@ async function init() {
   T = I18N[lang] || I18N.en;
   micOn = savedItem('mic') !== '0';
   stay = savedItem('stay') === '1';
+  feedback = savedItem('feedback') !== '0';
 
   applyLanguage();
   loadCharacter(savedItem('character'));
@@ -287,6 +292,7 @@ function applyLanguage() {
   updateMicDeviceButton(listener ? listener.deviceLabel : '');
   updateSleepButton();
   updateStayButton();
+  updateFeedbackButton();
   refreshAutostart();
   renderShortcutList();
   renderReminderList();
@@ -368,12 +374,106 @@ function findWakeAny(tokens) {
   // "-zo" ile biten adlar taniyici tarafindan cok farkli yazilabiliyor ("hiç zor", "peki zor");
   // ilk kelime(ler) zo/zor ile bitiyorsa mevcut karakter cagrilmis say.
   if (/zo$/.test(currentCharId) && tokens.length) {
-    if (/zor?$/.test(tokens[0])) return { index: 0, length: 1, name: tokens[0], id: currentCharId };
+    if (/zor?$/.test(tokens[0])) return { index: 0, length: 1, name: tokens[0], id: currentCharId, heuristic: true };
     if (tokens.length > 1 && tokens[1].length <= 4 && /zor?$/.test(tokens[0] + tokens[1])) {
-      return { index: 0, length: 2, name: tokens[0] + tokens[1], id: currentCharId };
+      return { index: 0, length: 2, name: tokens[0] + tokens[1], id: currentCharId, heuristic: true };
     }
   }
   return null;
+}
+
+// Sezgiyle yakalanan isim yazimi, ardindan komut basariyla calisirsa kalici takma ad olur
+function rememberWakeAlias() {
+  const alias = pendingWakeAlias;
+  pendingWakeAlias = null;
+  if (!alias || alias.length < 4) return;
+  const learned = learnedAliases(currentCharId);
+  if (learned.includes(alias)) return;
+  learned.push(alias);
+  saveLearnedAliases(currentCharId, learned);
+  window.ichi.voiceLog(`LEARNED: ${alias}`);
+}
+
+// Kisitli taniyicinin kelime dagarcigi: komut kelimeleri, sayilar, birimler ve kisayol adlari
+function grammarWords() {
+  const vc = T.voice;
+  const words = new Set();
+  const add = (w) => {
+    for (const part of String(w || '').toLocaleLowerCase('tr').split(/\s+/)) {
+      const clean = part.replace(/[^\p{L}\p{N}]/gu, '');
+      if (clean) words.add(clean);
+    }
+  };
+  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
+  for (const key of lists) (vc[key] || []).forEach(add);
+  Object.keys(vc.units).forEach(add);
+  Object.keys(vc.numbers).forEach(add);
+  for (const a of actions) {
+    add(a.label);
+    (a.voice || []).forEach(add);
+  }
+  return [...words];
+}
+
+function refreshGrammar() {
+  if (listener) listener.setGrammar(grammarWords());
+}
+
+function isReminderTokens(tokens) {
+  return tokens.some((tok) => T.voice.reminder.some((r) => tok.startsWith(V.normalize(r))));
+}
+
+// Hatirlatici: sure kisitli taniyicidan (sayilari iyi duyar), not serbest taniyicidan alinir
+function collectReminderPart(source, tokens, raw) {
+  if (!reminderParts) reminderParts = { free: null, grammar: null, timer: null };
+  reminderParts[source] = { tokens, raw };
+  clearTimeout(reminderParts.timer);
+  if (reminderParts.free && reminderParts.grammar) finalizeReminder();
+  else reminderParts.timer = setTimeout(finalizeReminder, 900);
+}
+
+function finalizeReminder() {
+  const parts = reminderParts;
+  reminderParts = null;
+  if (!parts) return;
+  clearTimeout(parts.timer);
+  const vc = T.voice;
+  const g = parts.grammar ? V.parseReminder(parts.grammar.tokens, parts.grammar.raw, vc) : null;
+  const f = parts.free ? V.parseReminder(parts.free.tokens, parts.free.raw, vc) : null;
+  const minutes = g && g.hasDuration ? g.minutes : f ? f.minutes : g.minutes;
+  const note = (f && f.note) || (g && g.note) || '';
+  addReminder(minutes, note, true);
+  rememberWakeAlias();
+  stopListening();
+}
+
+function onGrammarTranscript(text) {
+  window.ichi.voiceLog(`GRAMMAR: ${text}`);
+  if (teaching) return;
+  const unknown = (text.match(/\[unk\]/g) || []).length;
+  const { tokens, raw } = V.tokenize(text.replace(/\[unk\]/g, ' '));
+  const reminderPending = Boolean(reminderParts && !reminderParts.grammar);
+  if (!isListening() && !reminderPending) return;
+  // cogu [unk] ise bu bir komut degil; serbest taniyici karar versin
+  if (!tokens.length || unknown > tokens.length) return;
+  if (isReminderTokens(tokens)) {
+    collectReminderPart('grammar', tokens, raw);
+    return;
+  }
+  if (!isListening()) return;
+  if (runVoiceCommand(tokens, raw, 'grammar')) {
+    rememberWakeAlias();
+    stopListening();
+  }
+}
+
+function updateFeedbackButton() {
+  feedbackBtn.textContent = t(feedback ? 'feedbackOn' : 'feedbackOff');
+}
+
+function showHeard(rawTokens, ms = 2500) {
+  if (!feedback || menuOpen()) return;
+  say(t('heardLine', { text: rawTokens.join(' ') }), ms, { replace: true, tag: 'listening' });
 }
 
 // ---------- adimi ogret ----------
@@ -869,6 +969,7 @@ function showMarket() {
 
 async function renderActions(list) {
   actions = list || (await window.ichi.getActions());
+  refreshGrammar();
   actionsEl.replaceChildren();
   for (const action of actions) {
     const btn = document.createElement('button');
@@ -1046,6 +1147,7 @@ async function startVoice() {
       modelUrl: url,
       onResult: onFinalTranscript,
       onPartial: onPartialTranscript,
+      onGrammarResult: onGrammarTranscript,
       onSpeech: () => extendListening(LISTEN_EXTEND_MS),
       deviceId: savedItem('micDevice') || '',
     });
@@ -1054,6 +1156,7 @@ async function startVoice() {
       return;
     }
     listener = created;
+    refreshGrammar();
     setVoiceStatus(t('statusListening'));
     window.ichi.voiceLog(`VOICE: listening lang=${lang} input="${created.deviceLabel}" rate=${created.sampleRate}`);
     updateMicDeviceButton(created.deviceLabel);
@@ -1064,8 +1167,16 @@ async function startVoice() {
     window.ichi.voiceReady();
   } catch (err) {
     console.error(err);
-    setVoiceStatus(t('statusError'));
-    window.ichi.voiceLog(`ERROR: ${err && err.message}`);
+    const name = err && err.name;
+    const key =
+      name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError'
+        ? 'statusMicDenied'
+        : name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError'
+          ? 'statusNoMic'
+          : 'statusError';
+    setVoiceStatus(t(key));
+    if (key !== 'statusError') say(t(key), 10000);
+    window.ichi.voiceLog(`ERROR: ${name || ''} ${err && err.message}`);
   } finally {
     voiceStarting = false;
   }
@@ -1089,6 +1200,7 @@ function startListening() {
   listeningStartedAt = Date.now();
   listeningUntil = listeningStartedAt + LISTEN_WINDOW_MS;
   pendingCmd = { tokens: [], raw: [] };
+  if (listener) listener.setListening(true);
   showEmote('🎧', 0, true);
   if (!menuOpen()) say(line('listening'), LISTEN_WINDOW_MS + 2000, { replace: true, tag: 'listening' });
   armListenTimer();
@@ -1129,7 +1241,9 @@ function armListenTimer() {
 function stopListening() {
   listeningUntil = 0;
   pendingCmd = null;
+  pendingWakeAlias = null;
   clearTimeout(listenTimer);
+  if (listener) listener.setListening(false);
   hideEmote();
   if (bubbleOpen() && bubbleTag === 'listening') hideBubble();
 }
@@ -1142,6 +1256,7 @@ function onPartialTranscript(text) {
   if (wake && wake.id === currentCharId) {
     if (sleeping) wakeUp('voice');
     startListening();
+    pendingWakeAlias = wake.heuristic ? wake.name : null;
   }
 }
 
@@ -1167,13 +1282,17 @@ function onFinalTranscript(text) {
     }
     const cmd = tokens.slice(wake.index + wake.length);
     const rawCmd = raw.slice(wake.index + wake.length);
+    const heuristicAlias = wake.heuristic ? wake.name : null;
     if (!cmd.length) {
       startListening();
+      pendingWakeAlias = heuristicAlias;
       return;
     }
     // Isim ve komut ayni cumlede geldi
+    pendingWakeAlias = heuristicAlias;
     const handled = runVoiceCommand(cmd, rawCmd);
     if (handled) {
+      rememberWakeAlias();
       stopListening();
       return;
     }
@@ -1183,7 +1302,8 @@ function onFinalTranscript(text) {
     }
     stopListening();
     showEmote('🤔', 2500);
-    say(line('unknown'), 4500, { replace: true });
+    if (feedback) say(t('heardLine', { text: rawCmd.join(' ') }), 4000, { replace: true });
+    else say(line('unknown'), 4500, { replace: true });
     return;
   }
 
@@ -1194,6 +1314,7 @@ function onFinalTranscript(text) {
   pendingCmd.tokens.push(...tokens);
   pendingCmd.raw.push(...raw);
   if (runVoiceCommand(pendingCmd.tokens, pendingCmd.raw)) {
+    rememberWakeAlias();
     stopListening();
     return;
   }
@@ -1202,18 +1323,18 @@ function onFinalTranscript(text) {
     return;
   }
   showEmote('🤔', 1500);
+  showHeard(raw);
   extendListening(LISTEN_EXTEND_MS);
 }
 
 // Komutu calistirir; taninmadiysa false doner (soru sormak cagiranin karari).
-function runVoiceCommand(tokens, rawTokens) {
+function runVoiceCommand(tokens, rawTokens, source = 'free') {
   const vc = T.voice;
   const has = (words) => V.hasWord(tokens, words);
-  window.ichi.voiceLog(`COMMAND: ${tokens.join(' ')}`);
+  window.ichi.voiceLog(`COMMAND(${source}): ${tokens.join(' ')}`);
 
-  if (tokens.some((tok) => vc.reminder.some((r) => tok.startsWith(V.normalize(r))))) {
-    const r = V.parseReminder(tokens, rawTokens, vc);
-    addReminder(r.minutes, r.note, true);
+  if (isReminderTokens(tokens)) {
+    collectReminderPart(source, tokens, rawTokens);
     return true;
   }
   if (has(vc.help)) {
@@ -1343,6 +1464,11 @@ languageBtn.addEventListener('click', () => setLanguage(lang === 'tr' ? 'en' : '
 micBtn.addEventListener('click', () => setMic(!micOn));
 micDeviceBtn.addEventListener('click', cycleMicDevice);
 teachBtn.addEventListener('click', startTeaching);
+feedbackBtn.addEventListener('click', () => {
+  feedback = !feedback;
+  saveItem('feedback', feedback ? '1' : '0');
+  updateFeedbackButton();
+});
 autostartBtn.addEventListener('click', async () => {
   const on = await window.ichi.getAutostart();
   await window.ichi.setAutostart(!on);

@@ -27,6 +27,9 @@
       "build/icon.png",
       "package.json"
     ],
+    "extraResources": [
+      { "from": "models", "to": "models", "filter": ["*.tar.gz"] }
+    ],
     "win": {
       "target": [
         {

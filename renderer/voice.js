@@ -174,6 +174,7 @@
     }
     return {
       minutes: dur ? Math.max(1, Math.round(dur.minutes)) : cfg.defaultMinutes || 10,
+      hasDuration: Boolean(dur),
       note: note.join(' '),
     };
   }
@@ -187,7 +188,7 @@
       .map((d) => ({ id: d.deviceId, label: d.label || d.deviceId.slice(0, 8) }));
   }
 
-  async function createListener({ modelUrl, onResult, onPartial, onSpeech, deviceId }) {
+  async function createListener({ modelUrl, onResult, onPartial, onSpeech, onGrammarResult, deviceId }) {
     if (!window.Vosk) throw new Error('vosk-browser not loaded');
     const model = await window.Vosk.createModel(modelUrl);
     const ctx = new AudioContext();
@@ -201,6 +202,30 @@
       const text = (msg.result && msg.result.partial) || '';
       if (text.trim()) onPartial(text);
     });
+
+    // Dinleme penceresinde ikinci bir taniyici sadece bilinen komut kelimelerini dinler (cok daha isabetli).
+    let grammarRecognizer = null;
+    let listeningMode = false;
+    let testFeeding = false; // WAV testi surerken mikrofon sesi karismasin
+    function setGrammar(words) {
+      if (grammarRecognizer) {
+        try {
+          grammarRecognizer.remove();
+        } catch {}
+        grammarRecognizer = null;
+      }
+      const list = [...new Set((words || []).map((w) => String(w).trim()).filter(Boolean))];
+      if (!list.length) return;
+      grammarRecognizer = new model.KaldiRecognizer(ctx.sampleRate, JSON.stringify([...list, '[unk]']));
+      grammarRecognizer.on('result', (msg) => {
+        const text = (msg.result && msg.result.text) || '';
+        if (text.trim() && onGrammarResult) onGrammarResult(text);
+      });
+    }
+    function feedBoth(samples, rate) {
+      recognizer.acceptWaveformFloat(samples, rate);
+      if (listeningMode && grammarRecognizer) grammarRecognizer.acceptWaveformFloat(samples, rate);
+    }
 
     const audio = { echoCancellation: true, noiseSuppression: true, channelCount: 1 };
     if (deviceId) audio.deviceId = { exact: deviceId };
@@ -244,11 +269,11 @@
       const gain = Math.min(10, Math.max(1, 0.08 / Math.max(speechLevel, 0.004)));
       const scaled = new Float32Array(data.length);
       for (let i = 0; i < data.length; i++) scaled[i] = Math.max(-1, Math.min(1, data[i] * gain));
-      if (now < activeUntil) {
+      if (now < activeUntil && !testFeeding) {
         try {
           // kapi yeni acildiysa bir onceki parcayi da ver ki ilk hece kirpilmasin
-          if (!wasActive && previous) recognizer.acceptWaveformFloat(previous, ctx.sampleRate);
-          recognizer.acceptWaveformFloat(scaled, ctx.sampleRate);
+          if (!wasActive && previous) feedBoth(previous, ctx.sampleRate);
+          feedBoth(scaled, ctx.sampleRate);
         } catch (err) {
           console.error('acceptWaveform', err);
         }
@@ -270,29 +295,43 @@
         stats.peak = 0;
         return out;
       },
+      setGrammar,
+      setListening(on) {
+        listeningMode = Boolean(on);
+      },
       stop() {
         try {
           node.disconnect();
           source.disconnect();
           stream.getTracks().forEach((t) => t.stop());
           recognizer.remove();
+          if (grammarRecognizer) grammarRecognizer.remove();
           model.terminate();
           ctx.close();
         } catch (err) {
           console.error('voice stop', err);
         }
       },
-      // Test amacli: bir WAV dosyasini mikrofon yerine taniyiciya besler.
+      // Test amacli: bir WAV dosyasini gercek zamanli hizda mikrofon yerine taniyicilara besler.
       async feedUrl(url) {
         const buf = await ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
         const data = buf.getChannelData(0);
         const chunk = 4096;
-        for (let i = 0; i < data.length; i += chunk) {
-          const b = ctx.createBuffer(1, chunk, buf.sampleRate);
-          b.getChannelData(0).set(data.subarray(i, i + chunk));
-          recognizer.acceptWaveform(b);
+        const stepMs = (chunk / buf.sampleRate) * 1000;
+        testFeeding = true;
+        try {
+          for (let i = 0; i < data.length; i += chunk) {
+            const samples = Float32Array.from(data.subarray(i, i + chunk));
+            let sum = 0;
+            for (let j = 0; j < samples.length; j += 4) sum += samples[j] * samples[j];
+            if (onSpeech && Math.sqrt(sum / (samples.length / 4)) > 0.01) onSpeech();
+            feedBoth(samples, buf.sampleRate);
+            await new Promise((r) => setTimeout(r, stepMs));
+          }
+          feedBoth(new Float32Array(buf.sampleRate * 2), buf.sampleRate);
+        } finally {
+          testFeeding = false;
         }
-        recognizer.acceptWaveform(ctx.createBuffer(1, buf.sampleRate * 2, buf.sampleRate));
       },
     };
   }
