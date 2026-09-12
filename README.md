@@ -9,7 +9,7 @@ Everything runs **locally and for free** — no accounts, no API keys.
 ## Features
 
 - **11 characters** – Kitzo the cyber cat, Zumi, Byto, Fyra, Nocto, Wispa, Drayko, Nubi, Özgezo, Barkınzo and the duo Kutucuzo. Switch any time from the menu or just say a character's name.
-- **Voice commands** – say the character's name, then a command: *"open YouTube"*, *"prices"*, *"remind me in 15 minutes coffee"*, *"sleep"*, *"stay"*, *"menu"*. Speech recognition runs offline (Vosk); the model (~40 MB) is downloaded once.
+- **Voice commands** – say the character's name, then a command: *"open YouTube"*, *"prices"*, *"remind me in 15 minutes coffee"*, *"sleep"*, *"stay"*, *"menu"*. Speech recognition runs fully offline (Vosk); the installer already contains the Turkish and English models, so nothing is downloaded. (When running from source, a missing model is fetched once into `models/`.)
 - **Shortcuts** – add your own buttons (links or programs) with optional voice keywords.
 - **Market mood** – BTC/ETH prices with 24h change; the buddy gets excited or sad on big moves.
 - **Reminders** – from the menu or by voice, with a Windows notification.

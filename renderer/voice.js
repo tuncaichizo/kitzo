@@ -87,8 +87,9 @@
       const pair = i + 1 < tokens.length ? tokens[i] + tokens[i + 1] : null;
       for (const n of names) {
         if (startOnly && startOnly.has(n) && i !== 0) continue;
-        if (wakeEq(tokens[i], n)) return { index: i, length: 1, name: n };
+        // once ikili ("keats so" -> keatso), sonra tekli; aksi halde ikinci parca komut sanilir
         if (pair && wakeEq(pair, n)) return { index: i, length: 2, name: n };
+        if (wakeEq(tokens[i], n)) return { index: i, length: 1, name: n };
       }
     }
     return null;

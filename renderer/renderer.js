@@ -14,7 +14,7 @@ const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
 
 // Karakterler kendi adlariyla cagrilir; Vosk'un duyabilecegi yakin yazimlar da kabul edilir.
 const WAKE_ALIASES = {
-  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico'],
+  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso'],
   zumi: ['zumi', 'sumi', 'zumu', 'zumii'],
   byto: ['byto', 'bayto', 'bito', 'baytu', 'bayta'],
   fyra: ['fyra', 'fira', 'fayra', 'fira'],
@@ -373,9 +373,10 @@ function findWakeAny(tokens) {
   }
   // "-zo" ile biten adlar taniyici tarafindan cok farkli yazilabiliyor ("hiç zor", "peki zor");
   // ilk kelime(ler) zo/zor ile bitiyorsa mevcut karakter cagrilmis say.
+  // Ingilizce modelde "kid so", "keith so" gibi "-so" ile biten ikililer de ayni sekilde kabul edilir.
   if (/zo$/.test(currentCharId) && tokens.length) {
     if (/zor?$/.test(tokens[0])) return { index: 0, length: 1, name: tokens[0], id: currentCharId, heuristic: true };
-    if (tokens.length > 1 && tokens[1].length <= 4 && /zor?$/.test(tokens[0] + tokens[1])) {
+    if (tokens.length > 1 && tokens[1].length <= 4 && /(zor?|so)$/.test(tokens[0] + tokens[1]) && tokens[0].length >= 3) {
       return { index: 0, length: 2, name: tokens[0] + tokens[1], id: currentCharId, heuristic: true };
     }
   }
@@ -1283,7 +1284,8 @@ function onFinalTranscript(text) {
     const cmd = tokens.slice(wake.index + wake.length);
     const rawCmd = raw.slice(wake.index + wake.length);
     const heuristicAlias = wake.heuristic ? wake.name : null;
-    if (!cmd.length) {
+    // ismin arta kalan kucuk parcasi ("so", "zo") komut degildir
+    if (!cmd.length || (cmd.length === 1 && cmd[0].length <= 2)) {
       startListening();
       pendingWakeAlias = heuristicAlias;
       return;
