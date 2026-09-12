@@ -31,7 +31,12 @@ const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi', 'gitse
 // Kisa bir cumlenin ilk kelimesi bu kaliba uyuyorsa karaktere seslenilmis sayilir (tanıyıcı "Kitzo"yu
 // "gitse", "kitap", "kızı", "chicco" gibi yaziyor); komut basariyla calisirsa yazim ogrenilir.
 const WAKE_PREFIX = { kitzo: /^(kit|git|kid|kiz|chic|cic|hic)[a-z]{1,5}$/ };
-const WAKE_PREFIX_EXCLUDE = new Set(['gitti', 'gitme', 'gitmek', 'gitsin', 'gidip', 'kitle', 'kitlesi']);
+const WAKE_PREFIX_EXCLUDE = new Set([
+  'gitti', 'gitme', 'gitmek', 'gitsin', 'gidip', 'gitmis', 'gitmisti', 'gitmeli', 'gitmez', 'gitmesi', 'gitmem',
+  'kitle', 'kitlesi', 'hicbir', 'hicbiri', 'kizlar', 'kizlari', 'kizim', 'kizin', 'kizarmis',
+]);
+const TENTATIVE_WINDOW_MS = 4500; // sessiz deneme dinlemesi: yaygin kelimeye benzeyen isim eslesmeleri icin
+const TENTATIVE_MAX_MS = 8000;
 
 const I18N = window.KITZO_I18N;
 const V = window.KitzoVoice;
@@ -127,6 +132,7 @@ let voiceStarting = false;
 let voiceGeneration = 0;
 let listeningUntil = 0;
 let listeningStartedAt = 0;
+let listeningTentative = false; // sessiz deneme dinlemesi (gosterge yok, kisa pencere)
 let listenTimer = null;
 let pendingCmd = null; // dinleme sirasinda biriken komut parcalari
 let bubbleTag = null;
@@ -373,12 +379,16 @@ function findWakeAny(tokens) {
   const order = [currentCharId, ...characters.map((c) => c.id).filter((id) => id !== currentCharId)];
   for (const id of order) {
     const wake = V.findWake(tokens, namesOf(id), startOnlyFor(id));
-    if (wake) return { ...wake, id };
+    if (wake) {
+      // yaygin kelimeye benzeyen takma adlar (zor, kitap...) ogrenilene kadar deneme sayilir
+      const tentative = START_ONLY_ALIASES.has(wake.name) && !learnedAliases(id).includes(wake.name);
+      return { ...wake, id, heuristic: tentative };
+    }
   }
   // "-zo" ile biten adlar taniyici tarafindan cok farkli yazilabiliyor ("hiç zor", "peki zor");
   // ilk kelime(ler) zo/zor ile bitiyorsa mevcut karakter cagrilmis say.
   const prefix = WAKE_PREFIX[currentCharId];
-  if (prefix && tokens.length && tokens.length <= 6 && prefix.test(tokens[0]) && !WAKE_PREFIX_EXCLUDE.has(tokens[0])) {
+  if (prefix && tokens.length && tokens.length <= 4 && prefix.test(tokens[0]) && !WAKE_PREFIX_EXCLUDE.has(tokens[0])) {
     return { index: 0, length: 1, name: tokens[0], id: currentCharId, heuristic: true };
   }
   // Ingilizce modelde "kid so", "keith so" gibi "-so" ile biten ikililer de ayni sekilde kabul edilir.
@@ -470,6 +480,7 @@ function onGrammarTranscript(text) {
     return;
   }
   if (!isListening()) return;
+  if (listeningTentative && tokens.length > 5) return;
   if (runVoiceCommand(tokens, raw, 'grammar')) {
     rememberWakeAlias();
     stopListening();
@@ -1205,19 +1216,23 @@ function isListening() {
 }
 
 // Isim duyuldu: komut icin sessizce bekle (soru sorma), konusma geldikce sureyi uzat.
-function startListening() {
+// tentative: isim yaygin bir kelimeye benziyordu; gosterge gostermeden kisa sure komut bekle
+function startListening({ tentative = false } = {}) {
   listeningStartedAt = Date.now();
-  listeningUntil = listeningStartedAt + LISTEN_WINDOW_MS;
+  listeningTentative = tentative;
+  listeningUntil = listeningStartedAt + (tentative ? TENTATIVE_WINDOW_MS : LISTEN_WINDOW_MS);
   pendingCmd = { tokens: [], raw: [] };
   if (listener) listener.setListening(true);
-  showEmote('🎧', 0, true);
-  if (!menuOpen()) say(line('listening'), LISTEN_WINDOW_MS + 2000, { replace: true, tag: 'listening' });
+  if (!tentative) {
+    showEmote('🎧', 0, true);
+    if (!menuOpen()) say(line('listening'), LISTEN_WINDOW_MS + 2000, { replace: true, tag: 'listening' });
+  }
   armListenTimer();
 }
 
 function extendListening(ms) {
   if (!isListening()) return;
-  const cap = listeningStartedAt + LISTEN_MAX_MS;
+  const cap = listeningStartedAt + (listeningTentative ? TENTATIVE_MAX_MS : LISTEN_MAX_MS);
   listeningUntil = Math.min(cap, Math.max(listeningUntil, Date.now() + ms));
   armListenTimer();
 }
@@ -1249,6 +1264,7 @@ function armListenTimer() {
 
 function stopListening() {
   listeningUntil = 0;
+  listeningTentative = false;
   pendingCmd = null;
   pendingWakeAlias = null;
   clearTimeout(listenTimer);
@@ -1264,7 +1280,7 @@ function onPartialTranscript(text) {
   const wake = findWakeAny(tokens);
   if (wake && wake.id === currentCharId) {
     if (sleeping) wakeUp('voice');
-    startListening();
+    startListening({ tentative: Boolean(wake.heuristic) });
     pendingWakeAlias = wake.heuristic ? wake.name : null;
   }
 }
@@ -1292,12 +1308,15 @@ function onFinalTranscript(text) {
     const cmd = tokens.slice(wake.index + wake.length);
     const rawCmd = raw.slice(wake.index + wake.length);
     const heuristicAlias = wake.heuristic ? wake.name : null;
+    const tentative = Boolean(wake.heuristic);
     // ismin arta kalan kucuk parcasi ("so", "zo") komut degildir
     if (!cmd.length || (cmd.length === 1 && cmd[0].length <= 2)) {
-      startListening();
+      startListening({ tentative });
       pendingWakeAlias = heuristicAlias;
       return;
     }
+    // Deneme eslesmesinde uzun cumle arka plan konusmasidir (TV: "zor koku nerede...")
+    if (tentative && cmd.length > 5) return;
     // Isim ve komut ayni cumlede geldi
     pendingWakeAlias = heuristicAlias;
     const handled = runVoiceCommand(cmd, rawCmd);
@@ -1308,11 +1327,12 @@ function onFinalTranscript(text) {
     }
     // Sezgisel isimden sonra tek anlamsiz kelime kaldiysa ("kitap reis") o da ismin parcasidir: beklemeye gec
     if (summoned || (wake.heuristic && cmd.length === 1)) {
-      startListening();
+      startListening({ tentative });
       pendingWakeAlias = heuristicAlias;
       return;
     }
     stopListening();
+    if (tentative) return; // sessizce vazgec
     showEmote('🤔', 2500);
     if (feedback) say(t('heardLine', { text: rawCmd.join(' ') }), 4000, { replace: true });
     else say(line('unknown'), 4500, { replace: true });
@@ -1320,6 +1340,20 @@ function onFinalTranscript(text) {
   }
 
   if (!isListening()) return;
+
+  // Deneme dinlemesi tek atis: kisa ve net bir komut degilse sessizce kapan
+  if (listeningTentative) {
+    if (tokens.length > 5) {
+      stopListening();
+      return;
+    }
+    lastInteraction = Date.now();
+    if (runVoiceCommand(tokens, raw)) {
+      rememberWakeAlias();
+    }
+    stopListening();
+    return;
+  }
 
   // Dinleme penceresindeyiz: parcalari biriktir, tamamini dene, olmadiysa beklemeye devam et
   lastInteraction = Date.now();
