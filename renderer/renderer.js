@@ -14,7 +14,7 @@ const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
 
 // Karakterler kendi adlariyla cagrilir; Vosk'un duyabilecegi yakin yazimlar da kabul edilir.
 const WAKE_ALIASES = {
-  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso', 'kızı', 'kitzi', 'kizzi'],
+  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso', 'kızı', 'kitzi', 'kizzi', 'gitse', 'gitso', 'gitzo', 'kitse', 'kitap', 'kitapreis', 'kidse'],
   zumi: ['zumi', 'sumi', 'zumu', 'zumii'],
   byto: ['byto', 'bayto', 'bito', 'baytu', 'bayta'],
   fyra: ['fyra', 'fira', 'fayra', 'fira'],
@@ -27,7 +27,11 @@ const WAKE_ALIASES = {
   kutucuzo: ['kutucuzo', 'kutucuso', 'kutucu', 'kutuzo', 'korkutucu', 'korkutucuzor', 'kutucuzor'],
 };
 // Gunluk konusmada gecebilen kisa takma adlar: yalnizca cumle basinda uyandirir
-const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi']);
+const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi', 'gitse', 'kitap']);
+// Kisa bir cumlenin ilk kelimesi bu kaliba uyuyorsa karaktere seslenilmis sayilir (tanıyıcı "Kitzo"yu
+// "gitse", "kitap", "kızı", "chicco" gibi yaziyor); komut basariyla calisirsa yazim ogrenilir.
+const WAKE_PREFIX = { kitzo: /^(kit|git|kid|kiz|chic|cic|hic)[a-z]{1,5}$/ };
+const WAKE_PREFIX_EXCLUDE = new Set(['gitti', 'gitme', 'gitmek', 'gitsin', 'gidip', 'kitle', 'kitlesi']);
 
 const I18N = window.KITZO_I18N;
 const V = window.KitzoVoice;
@@ -373,6 +377,10 @@ function findWakeAny(tokens) {
   }
   // "-zo" ile biten adlar taniyici tarafindan cok farkli yazilabiliyor ("hiç zor", "peki zor");
   // ilk kelime(ler) zo/zor ile bitiyorsa mevcut karakter cagrilmis say.
+  const prefix = WAKE_PREFIX[currentCharId];
+  if (prefix && tokens.length && tokens.length <= 6 && prefix.test(tokens[0]) && !WAKE_PREFIX_EXCLUDE.has(tokens[0])) {
+    return { index: 0, length: 1, name: tokens[0], id: currentCharId, heuristic: true };
+  }
   // Ingilizce modelde "kid so", "keith so" gibi "-so" ile biten ikililer de ayni sekilde kabul edilir.
   if (/zo$/.test(currentCharId) && tokens.length) {
     if (/zor?$/.test(tokens[0])) return { index: 0, length: 1, name: tokens[0], id: currentCharId, heuristic: true };
@@ -1298,8 +1306,10 @@ function onFinalTranscript(text) {
       stopListening();
       return;
     }
-    if (summoned) {
+    // Sezgisel isimden sonra tek anlamsiz kelime kaldiysa ("kitap reis") o da ismin parcasidir: beklemeye gec
+    if (summoned || (wake.heuristic && cmd.length === 1)) {
       startListening();
+      pendingWakeAlias = heuristicAlias;
       return;
     }
     stopListening();
