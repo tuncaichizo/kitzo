@@ -500,24 +500,61 @@ function hasPhrase(tokens, phrase) {
   return words.length > 0 && words.every((w) => tokens.some((tok) => V.fuzzyEq(tok, w)));
 }
 
+let lastChatReply = '';
+
 function chatReply(tokens) {
   const vc = T.voice;
+  const vars = () => ({ mood: moodEmoji(), name: currentName(), market: marketText() });
   for (const entry of vc.chat || []) {
     if (!entry.any.some((phrase) => hasPhrase(tokens, phrase))) continue;
+    let reply;
     switch (entry.special) {
       case 'joke':
-        return pick(vc.jokes);
+        reply = pick(vc.jokes);
+        break;
       case 'time':
-        return fill(vc.timeLine, { time: new Date().toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' }) });
+        reply = fill(vc.timeLine, { time: new Date().toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' }) });
+        break;
       case 'date':
-        return fill(vc.dateLine, { date: new Date().toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' }) });
+        reply = fill(vc.dateLine, { date: new Date().toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' }) });
+        break;
       case 'market':
-        return fill(vc.marketComment[mood] || vc.marketComment.flat, { market: marketText() });
+        reply = fill(vc.marketComment[mood] || vc.marketComment.flat, vars());
+        break;
       case 'doing':
-        return fill(pick(vc.doing), { market: marketText() });
+        reply = fill(pick(vc.doing), vars());
+        break;
+      case 'repeat':
+        return lastChatReply || (lang === 'tr' ? 'Daha bir şey demedim ki 😅' : "I haven't said anything yet 😅");
+      case 'sleepSoon':
+        setTimeout(() => sleep('voice'), 1500);
+        reply = line('sleep');
+        break;
+      case 'dance':
+        jump();
+        setTimeout(jump, 700);
+        setTimeout(jump, 1400);
+        reply = lang === 'tr' ? '💃 Mum dansı! 🕺' : '💃 Candle dance! 🕺';
+        break;
+      case 'jump':
+        jump();
+        reply = 'Hop! 🐾';
+        break;
+      case 'wave':
+        wave();
+        showEmote('👋', 2500);
+        reply = line('hello');
+        break;
+      case 'wink':
+        charEl.classList.add('wink');
+        setTimeout(() => charEl.classList.remove('wink'), 800);
+        reply = '😉';
+        break;
       default:
-        return pick(entry.replies);
+        reply = fill(pick(entry.replies), vars());
     }
+    lastChatReply = reply;
+    return reply;
   }
   return null;
 }
