@@ -265,6 +265,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('get-language', () => getLanguage());
+  ipcMain.handle('get-version', () => app.getVersion());
   ipcMain.handle('set-language', (_e, lang) => {
     patchSettings({ language: lang === 'tr' ? 'tr' : 'en' });
     updateTrayMenu();

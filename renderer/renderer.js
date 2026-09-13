@@ -223,6 +223,7 @@ async function init() {
 
   lang = await window.ichi.getLanguage();
   T = I18N[lang] || I18N.en;
+  appVersion = await window.ichi.getVersion();
   micOn = savedItem('mic') !== '0';
   stay = savedItem('stay') === '1';
   feedback = savedItem('feedback') !== '0';
@@ -502,6 +503,7 @@ function hasPhrase(tokens, phrase) {
 
 let lastChatReply = '';
 let lastRiddleAnswer = '';
+let appVersion = '';
 let lastChatEntry = null;
 let lastChatAt = 0;
 
@@ -552,6 +554,46 @@ function chatReply(tokens) {
         reply = lastRiddleAnswer ? fill(vc.riddleAnswerLine, { a: lastRiddleAnswer }) : vc.riddleNone;
         lastRiddleAnswer = '';
         break;
+      case 'quote':
+        reply = pick(vc.quotes);
+        break;
+      case 'fortune':
+        reply = pick(vc.fortunes);
+        break;
+      case 'quip':
+        reply = line('quips');
+        break;
+      case 'version':
+        reply = fill(vc.versionLine, { version: appVersion });
+        break;
+      case 'coin':
+        reply = fill(vc.coinLine, { side: pick(vc.coinSides) });
+        break;
+      case 'dice':
+        reply = fill(vc.diceLine, { n: 1 + Math.floor(Math.random() * 6) });
+        break;
+      case 'random':
+        reply = fill(vc.randomLine, { n: 1 + Math.floor(Math.random() * 100) });
+        break;
+      case 'zodiac': {
+        const sign = vc.zodiacSigns.find((s) => tokens.some((tok) => V.strictEq(tok, V.normalize(s))));
+        reply = sign ? fill(vc.zodiacLine, { sign: sign.charAt(0).toLocaleUpperCase(lang === 'tr' ? 'tr' : 'en') + sign.slice(1) }) : vc.zodiacAsk;
+        break;
+      }
+      case 'rps': {
+        const choices = ['rock', 'paper', 'scissors'];
+        const picked = choices.filter((c) => tokens.some((tok) => V.strictEq(tok, V.normalize(vc.rps[c]))));
+        const you = picked.length === 1 ? picked[0] : null; // "tas kagit makas" oyunun adi, secim degil
+        if (!you) {
+          reply = vc.rps.ask;
+          break;
+        }
+        const me = pick(choices);
+        const beats = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+        const key = you === me ? 'draw' : beats[me] === you ? 'win' : 'lose';
+        reply = fill(vc.rps[key], { you: vc.rps[you], me: vc.rps[me] });
+        break;
+      }
       case 'sleepSoon':
         setTimeout(() => sleep('voice'), 1500);
         reply = line('sleep');
@@ -577,7 +619,7 @@ function chatReply(tokens) {
         reply = '😉';
         break;
       default:
-        reply = fill(pick(entry.replies), vars());
+        reply = fill(pick(entry.replies), { ...vars(), version: appVersion });
     }
     lastChatReply = reply;
     return reply;
@@ -1567,7 +1609,9 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
   }
 
   const action = matchAction(tokens);
-  if (!action) {
+  // kisitli taniyicinin tek kelimelik ciktilari sohbeti tetiklemesin (arka plan sesi olabilir)
+  const allowChat = !(source === "grammar" && tokens.length < 2);
+  if (!action && allowChat) {
     const reply = chatReply(tokens);
     if (reply) {
       window.ichi.voiceLog(`CHAT: ${reply}`);

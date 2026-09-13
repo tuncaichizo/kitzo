@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('ichi', {
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
   getLanguage: () => ipcRenderer.invoke('get-language'),
+  getVersion: () => ipcRenderer.invoke('get-version'),
   setLanguage: (lang) => ipcRenderer.invoke('set-language', lang),
   getMarket: () => ipcRenderer.invoke('get-market'),
   getReminders: () => ipcRenderer.invoke('get-reminders'),

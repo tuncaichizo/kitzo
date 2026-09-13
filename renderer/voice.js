@@ -57,7 +57,7 @@
     if (!token || !word) return false;
     if (token === word) return true;
     const n = Math.max(token.length, word.length);
-    if (n < 5) return false;
+    if (n < 6) return false;
     const d = levenshtein(token, word);
     if (d <= 1) return true;
     return d === 2 && n >= 8 && token.slice(0, 4) === word.slice(0, 4);
