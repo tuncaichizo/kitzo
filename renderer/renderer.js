@@ -14,7 +14,7 @@ const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
 
 // Karakterler kendi adlariyla cagrilir; Vosk'un duyabilecegi yakin yazimlar da kabul edilir.
 const WAKE_ALIASES = {
-  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso', 'kızı', 'kitzi', 'kizzi', 'gitse', 'gitso', 'gitzo', 'kitse', 'kitap', 'kitapreis', 'kidse'],
+  kitzo: ['kitzo', 'kitso', 'kitsu', 'kitzu', 'kizo', 'kitza', 'kiczo', 'kicso', 'hiczo', 'hiczor', 'hicso', 'kitzor', 'headzor', 'hedzor', 'hetzor', 'hetzo', 'zor', 'chicco', 'cicco', 'kicco', 'chico', 'kitco', 'kitcho', 'ciko', 'kico', 'keithso', 'kidsso', 'kidso', 'keatso', 'kitsoh', 'kizzo', 'keetso', 'kızı', 'kitzi', 'kizzi', 'gitse', 'gitso', 'gitzo', 'kitse', 'kitap', 'kitapreis', 'kidse', 'git', 'kit', 'kid'],
   zumi: ['zumi', 'sumi', 'zumu', 'zumii'],
   byto: ['byto', 'bayto', 'bito', 'baytu', 'bayta'],
   fyra: ['fyra', 'fira', 'fayra', 'fira'],
@@ -27,7 +27,7 @@ const WAKE_ALIASES = {
   kutucuzo: ['kutucuzo', 'kutucuso', 'kutucu', 'kutuzo', 'korkutucu', 'korkutucuzor', 'kutucuzor'],
 };
 // Gunluk konusmada gecebilen kisa takma adlar: yalnizca cumle basinda uyandirir
-const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi', 'gitse', 'kitap']);
+const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi', 'gitse', 'kitap', 'git', 'kit', 'kid']);
 // Kisa bir cumlenin ilk kelimesi bu kaliba uyuyorsa karaktere seslenilmis sayilir (tanıyıcı "Kitzo"yu
 // "gitse", "kitap", "kızı", "chicco" gibi yaziyor); komut basariyla calisirsa yazim ogrenilir.
 const WAKE_PREFIX = { kitzo: /^(kit|git|kid|kiz|chic|cic|hic)[a-z]{1,5}$/ };
@@ -425,6 +425,7 @@ function grammarWords() {
   };
   const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
   for (const key of lists) (vc[key] || []).forEach(add);
+  for (const entry of vc.chat || []) entry.any.forEach(add);
   Object.keys(vc.units).forEach(add);
   Object.keys(vc.numbers).forEach(add);
   for (const a of actions) {
@@ -485,6 +486,40 @@ function onGrammarTranscript(text) {
     rememberWakeAlias();
     stopListening();
   }
+}
+
+// ---------- sohbet (yazili karsilik) ----------
+
+function pick(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+// Cok kelimeli kalip: butun kelimeleri (bulanik) iceriyor mu
+function hasPhrase(tokens, phrase) {
+  const words = V.normalize(phrase).split(' ').filter(Boolean);
+  return words.length > 0 && words.every((w) => tokens.some((tok) => V.fuzzyEq(tok, w)));
+}
+
+function chatReply(tokens) {
+  const vc = T.voice;
+  for (const entry of vc.chat || []) {
+    if (!entry.any.some((phrase) => hasPhrase(tokens, phrase))) continue;
+    switch (entry.special) {
+      case 'joke':
+        return pick(vc.jokes);
+      case 'time':
+        return fill(vc.timeLine, { time: new Date().toLocaleTimeString(lang === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' }) });
+      case 'date':
+        return fill(vc.dateLine, { date: new Date().toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' }) });
+      case 'market':
+        return fill(vc.marketComment[mood] || vc.marketComment.flat, { market: marketText() });
+      case 'doing':
+        return fill(pick(vc.doing), { market: marketText() });
+      default:
+        return pick(entry.replies);
+    }
+  }
+  return null;
 }
 
 function updateFeedbackButton() {
@@ -1373,11 +1408,19 @@ function onFinalTranscript(text) {
   extendListening(LISTEN_EXTEND_MS);
 }
 
+// Iki taniyici ayni komutu birkac yuz ms arayla verebilir; ayni metin/aksiyon kisa surede bir kez calisir
+const DEDUPE_MS = 2500;
+let lastCommand = { text: '', at: 0 };
+let lastAction = { id: '', at: 0 };
+
 // Komutu calistirir; taninmadiysa false doner (soru sormak cagiranin karari).
 function runVoiceCommand(tokens, rawTokens, source = 'free') {
   const vc = T.voice;
   const has = (words) => V.hasWord(tokens, words);
-  window.ichi.voiceLog(`COMMAND(${source}): ${tokens.join(' ')}`);
+  const text = tokens.join(' ');
+  window.ichi.voiceLog(`COMMAND(${source}): ${text}`);
+  if (text === lastCommand.text && Date.now() - lastCommand.at < DEDUPE_MS) return true;
+  lastCommand = { text, at: Date.now() };
 
   if (isReminderTokens(tokens)) {
     collectReminderPart(source, tokens, rawTokens);
@@ -1398,7 +1441,15 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
     return true;
   }
   if (has(vc.market)) {
-    showMarket();
+    // "piyasa nasıl" gibi sorularda yorumlu cevap, duz "fiyatlar"da sadece tablo
+    const commented = chatReply(tokens);
+    if (commented) {
+      window.ichi.voiceLog(`CHAT: ${commented}`);
+      showEmote(moodEmoji(), 3000);
+      say(commented, 9000, { replace: true });
+    } else {
+      showMarket();
+    }
     return true;
   }
   if (has(vc.corner)) {
@@ -1453,7 +1504,18 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
   }
 
   const action = matchAction(tokens);
+  if (!action) {
+    const reply = chatReply(tokens);
+    if (reply) {
+      window.ichi.voiceLog(`CHAT: ${reply}`);
+      showEmote('💬', 2500);
+      say(reply, Math.min(10000, 3000 + reply.length * 60), { replace: true });
+      return true;
+    }
+  }
   if (action) {
+    if (action.id === lastAction.id && Date.now() - lastAction.at < DEDUPE_MS) return true;
+    lastAction = { id: action.id, at: Date.now() };
     window.ichi.voiceLog(`ACTION: ${action.label}`);
     showEmote('🚀', 2500);
     jump();
