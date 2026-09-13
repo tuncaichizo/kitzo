@@ -497,16 +497,23 @@ function pick(list) {
 // Cok kelimeli kalip: butun kelimeleri (bulanik) iceriyor mu
 function hasPhrase(tokens, phrase) {
   const words = V.normalize(phrase).split(' ').filter(Boolean);
-  return words.length > 0 && words.every((w) => tokens.some((tok) => V.fuzzyEq(tok, w)));
+  return words.length > 0 && words.every((w) => tokens.some((tok) => V.strictEq(tok, w)));
 }
 
 let lastChatReply = '';
+let lastRiddleAnswer = '';
+let lastChatEntry = null;
+let lastChatAt = 0;
 
 function chatReply(tokens) {
   const vc = T.voice;
   const vars = () => ({ mood: moodEmoji(), name: currentName(), market: marketText() });
   for (const entry of vc.chat || []) {
     if (!entry.any.some((phrase) => hasPhrase(tokens, phrase))) continue;
+    // iki taniyici ayni konuyu pes pese yakalarsa ayni cevap kalsin
+    if (entry === lastChatEntry && Date.now() - lastChatAt < DEDUPE_MS) return lastChatReply;
+    lastChatEntry = entry;
+    lastChatAt = Date.now();
     let reply;
     switch (entry.special) {
       case 'joke':
@@ -526,6 +533,25 @@ function chatReply(tokens) {
         break;
       case 'repeat':
         return lastChatReply || (lang === 'tr' ? 'Daha bir şey demedim ki 😅' : "I haven't said anything yet 😅");
+      case 'rap':
+        reply = pick(vc.raps);
+        break;
+      case 'story':
+        reply = pick(vc.stories);
+        break;
+      case 'poem':
+        reply = pick(vc.poems);
+        break;
+      case 'riddle': {
+        const riddle = pick(vc.riddles);
+        lastRiddleAnswer = riddle.a;
+        reply = riddle.q;
+        break;
+      }
+      case 'riddleAnswer':
+        reply = lastRiddleAnswer ? fill(vc.riddleAnswerLine, { a: lastRiddleAnswer }) : vc.riddleNone;
+        lastRiddleAnswer = '';
+        break;
       case 'sleepSoon':
         setTimeout(() => sleep('voice'), 1500);
         reply = line('sleep');

@@ -51,6 +51,18 @@
     return d === 2 && n >= 6 && token.slice(0, 3) === word.slice(0, 3);
   }
 
+  // Sohbet kaliplari icin daha siki esleme: birebir, 5+ harfte 1 harf farki,
+  // 8+ harfte ayni 4 harfli baslangicla 2 harf farki (yorgun ~ yorgunum)
+  function strictEq(token, word) {
+    if (!token || !word) return false;
+    if (token === word) return true;
+    const n = Math.max(token.length, word.length);
+    if (n < 5) return false;
+    const d = levenshtein(token, word);
+    if (d <= 1) return true;
+    return d === 2 && n >= 8 && token.slice(0, 4) === word.slice(0, 4);
+  }
+
   function hasWord(tokens, words) {
     return (words || []).some((w) => {
       const nw = normalize(w);
@@ -341,5 +353,5 @@
     };
   }
 
-  window.KitzoVoice = { normalize, tokenize, fuzzyEq, hasWord, phraseScore, findWake, parseReminder, createListener, listMicrophones };
+  window.KitzoVoice = { normalize, tokenize, fuzzyEq, strictEq, hasWord, phraseScore, findWake, parseReminder, createListener, listMicrophones };
 })();
