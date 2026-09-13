@@ -200,14 +200,36 @@ function createTray() {
 
 // ---------- pencere ----------
 
-function createWindow() {
+// Kayitli konum hala bir ekranin icindeyse orada ac; yoksa ana ekranin sag alt kosesi
+function startPosition() {
+  const saved = getSettings().position;
+  if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+    const cx = saved.x + CHAR_W / 2;
+    const cy = saved.y + CHAR_H / 2;
+    const inside = screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      return cx >= a.x && cx < a.x + a.width && cy >= a.y && cy < a.y + a.height;
+    });
+    if (inside) return { x: Math.round(saved.x), y: Math.round(saved.y) };
+  }
   const { x: ax, y: ay, width: aw, height: ah } = screen.getPrimaryDisplay().workArea;
+  return { x: ax + aw - CHAR_W - 30, y: ay + ah - CHAR_H };
+}
+
+let savePositionTimer = null;
+function rememberPosition(x, y) {
+  clearTimeout(savePositionTimer);
+  savePositionTimer = setTimeout(() => patchSettings({ position: { x, y } }), 800);
+}
+
+function createWindow() {
+  const start = startPosition();
 
   win = new BrowserWindow({
     width: CHAR_W,
     height: CHAR_H,
-    x: ax + aw - CHAR_W - 30,
-    y: ay + ah - CHAR_H,
+    x: start.x,
+    y: start.y,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -270,6 +292,7 @@ function registerIpc() {
 
   ipcMain.on('move-window', (_e, { x, y }) => {
     win.setPosition(Math.round(x), Math.round(y), false);
+    rememberPosition(Math.round(x), Math.round(y));
   });
 
   ipcMain.on('set-overlay', (_e, { open, extra, below }) => {
