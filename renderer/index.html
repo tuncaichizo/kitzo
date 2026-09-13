@@ -42,6 +42,7 @@
 
       <div id="menu-settings" class="menu-section" hidden>
         <div class="menu-sub" data-i18n="settingsTitle"></div>
+        <button id="btn-guide" class="menu-btn" data-i18n="guide"></button>
         <button id="btn-language" class="menu-btn"></button>
         <button id="btn-mic" class="menu-btn"></button>
         <button id="btn-mic-device" class="menu-btn"></button>
@@ -53,8 +54,19 @@
         <button class="menu-btn btn-back" data-i18n="back"></button>
       </div>
 
+      <div id="menu-guide" class="menu-section" hidden>
+        <div class="menu-sub" data-i18n="guideTitle"></div>
+        <div class="guide-text" data-i18n="guide1"></div>
+        <div class="guide-text" data-i18n="guide2"></div>
+        <div class="guide-text" data-i18n="guide3"></div>
+        <div class="guide-text" data-i18n="guide4"></div>
+        <div class="guide-text" data-i18n="guide5"></div>
+        <button class="menu-btn btn-back" data-i18n="back"></button>
+      </div>
+
       <div id="menu-shortcuts" class="menu-section" hidden>
         <div class="menu-sub" data-i18n="newShortcut"></div>
+        <div class="guide-text" data-i18n="shortcutHint"></div>
         <input id="sc-label" class="menu-input" maxlength="40" data-i18n-ph="labelPh" />
         <input id="sc-target" class="menu-input" data-i18n-ph="targetPh" />
         <input id="sc-voice" class="menu-input" maxlength="80" data-i18n-ph="voicePh" />
@@ -84,6 +96,7 @@
   <script src="../node_modules/vosk-browser/dist/vosk.js"></script>
   <script src="characters.js"></script>
   <script src="i18n.js"></script>
+  <script src="chat-tr.js"></script>
   <script src="voice.js"></script>
   <script src="renderer.js"></script>
 </body>

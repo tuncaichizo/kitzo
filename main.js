@@ -21,7 +21,7 @@ const voiceModel = require('./lib/voice-model');
 
 const APP_NAME = 'Kitzo';
 const CHAR_W = 170;
-const CHAR_H = 240; // 204 karakter + 36 emote alani
+const CHAR_H = 174; // 144 karakter + 30 emote alani
 const IDLE_SLEEP_SECONDS = 20 * 60;
 const VOICE_TEST_ARG = '--voice-test=';
 const EXPORT_ICON_ARG = '--export-icon=';

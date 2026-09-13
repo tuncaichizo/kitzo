@@ -25,16 +25,16 @@ html, body {
 .character {
   position: absolute;
   bottom: 0;
-  left: 0;
-  width: 170px;
-  height: 204px;
+  left: 25px;
+  width: 120px;
+  height: 144px;
   cursor: grab;
   transform-origin: center bottom;
   transition: transform 0.15s ease;
 }
 
 #stage.below .character {
-  top: 36px;
+  top: 30px;
   bottom: auto;
 }
 
@@ -44,6 +44,8 @@ html, body {
 
 .character svg {
   display: block;
+  width: 120px;
+  height: 144px;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
 }
 
@@ -156,10 +158,10 @@ html, body {
 
 .emote {
   position: absolute;
-  bottom: 196px;
-  right: 6px;
-  width: 34px;
-  height: 34px;
+  bottom: 136px;
+  right: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: rgba(255,255,255,0.95);
   display: flex;
@@ -174,7 +176,7 @@ html, body {
 }
 
 #stage.below .emote {
-  top: 8px;
+  top: 6px;
   bottom: auto;
 }
 
@@ -200,7 +202,7 @@ html, body {
 
 .bubble {
   position: absolute;
-  bottom: 240px;
+  bottom: 174px;
   left: 4px;
   width: 162px;
   padding: 8px 10px;
@@ -229,7 +231,7 @@ html, body {
 }
 
 #stage.below .bubble {
-  top: 240px;
+  top: 174px;
   bottom: auto;
   transform: translateY(-8px);
 }
@@ -250,7 +252,7 @@ html, body {
 
 .menu {
   position: absolute;
-  bottom: 240px;
+  bottom: 174px;
   left: 0;
   width: 170px;
   display: flex;
@@ -268,7 +270,7 @@ html, body {
 }
 
 #stage.below .menu {
-  top: 240px;
+  top: 174px;
   bottom: auto;
   transform: translateY(-10px);
 }
@@ -404,6 +406,17 @@ html, body {
   padding: 6px 8px;
   background: #4a1f2a;
   border-color: #7a2c3d;
+}
+
+.guide-text {
+  font-size: 10px;
+  color: #cfd2ff;
+  line-height: 1.35;
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: #1a1c36;
+  border: 1px solid #2f3358;
+  white-space: normal;
 }
 
 .empty {

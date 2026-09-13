@@ -1,5 +1,5 @@
 const CHAR_W = 170;
-const CHAR_H = 240; // 204 karakter + 36 emote alani
+const CHAR_H = 174; // 144 karakter + 30 emote alani (karakter 120x144, pencere 170 genis)
 const OVERLAY_GAP = 8;
 const DRAG_THRESHOLD = 8;
 const WALK_SPEED = 1.6;
@@ -70,6 +70,7 @@ const teachBtn = $('btn-teach');
 const feedbackBtn = $('btn-feedback');
 const autostartBtn = $('btn-autostart');
 const shortcutsBtn = $('btn-shortcuts');
+const guideBtn = $('btn-guide');
 const sleepBtn = $('btn-sleep');
 const quitBtn = $('btn-quit');
 const scLabelEl = $('sc-label');
@@ -88,6 +89,7 @@ const sections = {
   characters: $('menu-characters'),
   actions: $('menu-actionsec'),
   settings: $('menu-settings'),
+  guide: $('menu-guide'),
   shortcuts: $('menu-shortcuts'),
   reminders: $('menu-reminders'),
 };
@@ -246,6 +248,7 @@ async function init() {
     say(line('greeting'));
     if (!savedItem('tipShown')) {
       say(line('tip'));
+      say(line('tipShortcuts'));
       saveItem('tipShown', '1');
     }
     if (market) say(marketText(), 7000);
@@ -501,6 +504,11 @@ function hasPhrase(tokens, phrase) {
   return words.length > 0 && words.every((w) => tokens.some((tok) => V.strictEq(tok, w)));
 }
 
+let lastShortcutNag = 0;
+function hasCustomShortcuts() {
+  return actions.some((a) => !/^(youtube|google)$/.test(a.id));
+}
+
 let lastChatReply = '';
 let lastRiddleAnswer = '';
 let appVersion = '';
@@ -556,6 +564,16 @@ function chatReply(tokens) {
         break;
       case 'quote':
         reply = pick(vc.quotes);
+        break;
+      case 'shortcutsGuide':
+        openMenu();
+        showSection('shortcuts');
+        reply = line('shortcutsGuideSay');
+        break;
+      case 'guide':
+        openMenu();
+        showSection('guide');
+        reply = line('guideSay');
         break;
       case 'fortune':
         reply = pick(vc.fortunes);
@@ -1075,6 +1093,11 @@ function minuteTick() {
   }
   if (sleeping || overlay || Date.now() < quietUntil) return;
   const roll = Math.random();
+  if (!hasCustomShortcuts() && Date.now() - lastShortcutNag > 2 * 3600000 && roll < 0.2) {
+    lastShortcutNag = Date.now();
+    say(line('shortcutsNag'), 7000);
+    return;
+  }
   if (roll < 0.14) say(line('quips'));
   else if (mood === 'rocket' || mood === 'up') {
     if (roll < 0.3) showEmote('✨', 2000);
@@ -1666,6 +1689,7 @@ waveBtn.addEventListener('click', () => {
   wave();
   say(line('hello'), 3500);
 });
+guideBtn.addEventListener('click', () => showSection('guide'));
 shortcutsBtn.addEventListener('click', () => {
   showSection('shortcuts');
   scLabelEl.focus();

@@ -287,16 +287,19 @@ window.KITZO_CHARACTERS = [
 .o{stroke:#3d2412;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .lo{stroke:#3d2412;stroke-width:16;stroke-linecap:round;fill:none}
 .lf{stroke:#d9a066;stroke-width:12;stroke-linecap:round;fill:none}
+.lp{stroke:#3b3f7a;stroke-width:12;stroke-linecap:round;fill:none}
 .txt{font-family:'Segoe UI Symbol',Arial,sans-serif;font-weight:800;text-anchor:middle}
 </style>
 <ellipse cx="75" cy="175" rx="32" ry="5" fill="#000" opacity="0.25"/>
-<path d="M47 44 Q34 92 44 134 Q58 124 60 92 Q54 70 57 44 Z" fill="#4a2f1c" class="o"/>
-<path d="M103 44 Q116 92 106 134 Q92 124 90 92 Q96 70 93 44 Z" fill="#4a2f1c" class="o"/>
+<path d="M45 46 C34 70 32 100 40 132 Q44 138 48 130 Q52 138 57 128 C57 108 52 84 56 62 Q58 52 55 46 Z" fill="#4a2f1c" class="o"/>
+<path d="M105 46 C116 70 118 100 110 132 Q106 138 102 130 Q98 138 93 128 C93 108 98 84 94 62 Q92 52 95 46 Z" fill="#4a2f1c" class="o"/>
+<path d="M47 62 C42 82 42 104 46 122" stroke="#7a5233" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
+<path d="M103 62 C108 82 108 104 104 122" stroke="#7a5233" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
 <g id="arm-left"><path d="M52 100 L44 132" class="lo"/><path d="M52 100 L44 132" class="lf"/><circle cx="44" cy="133" r="8" fill="#d9a066" class="o"/></g>
-<g id="leg-left" class="leg"><path d="M63 144 V162" class="lo"/><path d="M63 144 V162" class="lf"/><rect x="51" y="160" width="26" height="14" rx="6" fill="#f5f5f5" class="o"/><path d="M55 169 H73" stroke="#ff7bac" stroke-width="3" stroke-linecap="round"/></g>
-<g id="leg-right" class="leg"><path d="M87 144 V162" class="lo"/><path d="M87 144 V162" class="lf"/><rect x="73" y="160" width="26" height="14" rx="6" fill="#f5f5f5" class="o"/><path d="M77 169 H95" stroke="#ff7bac" stroke-width="3" stroke-linecap="round"/></g>
-<path d="M52 122 H98 L104 150 H46 Z" fill="#ff7bac" class="o"/>
-<path d="M62 124 L60 150 M75 124 V150 M88 124 L90 150" stroke="#3d2412" stroke-width="1.2" opacity="0.5"/>
+<g id="leg-left" class="leg"><path d="M63 144 V162" class="lo"/><path d="M63 144 V162" class="lp"/><rect x="51" y="160" width="26" height="14" rx="6" fill="#f5f5f5" class="o"/><path d="M55 169 H73" stroke="#c8a2ff" stroke-width="3" stroke-linecap="round"/></g>
+<g id="leg-right" class="leg"><path d="M87 144 V162" class="lo"/><path d="M87 144 V162" class="lp"/><rect x="73" y="160" width="26" height="14" rx="6" fill="#f5f5f5" class="o"/><path d="M77 169 H95" stroke="#c8a2ff" stroke-width="3" stroke-linecap="round"/></g>
+<rect x="53" y="122" width="44" height="26" rx="6" fill="#3b3f7a" class="o"/>
+<path d="M75 124 V146" stroke="#2a2d5c" stroke-width="2"/>
 <rect x="52" y="88" width="46" height="40" rx="10" fill="#c8a2ff" class="o"/>
 <path d="M44 90 Q75 66 106 90 Q75 102 44 90 Z" fill="#a67cf5" class="o"/>
 <rect x="40" y="88" width="18" height="17" rx="7" fill="#c8a2ff" class="o"/>
@@ -315,7 +318,10 @@ window.KITZO_CHARACTERS = [
 <path class="eye-closed wink-eye" d="M83 56 Q88 51 93 56" fill="none" stroke="#3d2412" stroke-width="2.5" stroke-linecap="round"/>
 <path d="M93 50 L96 47 M91 48 L93 44" stroke="#3d2412" stroke-width="1.5" stroke-linecap="round"/>
 <path d="M68 68 Q75 76 82 68" fill="none" stroke="#7a3b1e" stroke-width="2.2" stroke-linecap="round"/>
-<path d="M46 48 Q48 20 75 18 Q102 20 104 48 Q96 36 86 44 Q80 30 72 44 Q62 34 46 48 Z" fill="#4a2f1c" class="o"/>
+<path d="M48 50 Q43 68 49 88 Q53 72 52 54 Z" fill="#4a2f1c" class="o"/>
+<path d="M102 50 Q107 68 101 88 Q97 72 98 54 Z" fill="#4a2f1c" class="o"/>
+<path d="M46 50 Q48 18 76 17 Q104 18 104 50 Q100 36 90 40 Q86 26 74 36 Q62 28 56 42 Q50 38 46 50 Z" fill="#4a2f1c" class="o"/>
+<path d="M58 28 Q70 20 86 24" stroke="#7a5233" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
 <path d="M102 30 L88 22 L92 40 Z" fill="#ff7bac" class="o"/><path d="M102 30 L116 22 L112 40 Z" fill="#ff7bac" class="o"/><circle cx="102" cy="30" r="4" fill="#ff5c8a" class="o"/>
 </svg>`,
   },
@@ -355,7 +361,10 @@ window.KITZO_CHARACTERS = [
 <path class="eye-closed wink-eye" d="M81 53 Q87 49 93 53" fill="none" stroke="#2b1a10" stroke-width="2.5" stroke-linecap="round"/>
 <rect x="88" y="62" width="12" height="5" rx="2" fill="#f4d3a0" class="o" transform="rotate(-25 94 64)"/>
 <path d="M62 66 Q75 80 88 66 Z" fill="#7a3b1e" class="o"/><rect x="66" y="66" width="18" height="4" fill="#ffffff"/>
-<path d="M46 44 L50 18 L60 34 L68 10 L76 32 L86 12 L94 34 L104 20 L104 46 Q75 30 46 46 Z" fill="#2b1a10" class="o"/>
+<path d="M47 46 Q46 30 54 24 L56 48 Z" fill="#1c100a" class="o"/>
+<path d="M103 46 Q104 30 96 24 L94 48 Z" fill="#1c100a" class="o"/>
+<path d="M48 46 Q50 26 60 22 Q64 12 74 16 Q80 8 90 14 Q98 12 102 24 Q106 34 102 46 Q94 36 84 40 Q80 30 72 38 Q64 32 58 42 Q52 38 48 46 Z" fill="#2b1a10" class="o"/>
+<path d="M60 26 Q72 18 88 20" stroke="#5a3a24" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
 </svg>`,
   },
   {
@@ -373,10 +382,13 @@ window.KITZO_CHARACTERS = [
 <ellipse cx="75" cy="175" rx="52" ry="5" fill="#000" opacity="0.25"/>
 <!-- Kutucuzo: ikisi ayni mercan kapusonlu, ayni sort, ayni ayakkabi; ortak bir atki ve mutlu yuzler -->
 <!-- Ozgezo (sol) -->
-<path d="M28 72 Q22 100 28 122 Q36 112 35 78 Z" fill="#4a2f1c" class="o"/><path d="M60 72 Q66 100 60 122 Q52 112 53 78 Z" fill="#4a2f1c" class="o"/>
+<path d="M31 80 C25 96 24 116 29 138 Q32 142 35 137 Q38 142 41 135 C41 121 38 105 40 90 Q41 84 39 80 Z" fill="#4a2f1c" class="o"/>
+<path d="M57 80 C63 96 64 116 59 138 Q56 142 53 137 Q50 142 47 135 C47 121 50 105 48 90 Q47 84 49 80 Z" fill="#4a2f1c" class="o"/>
+<path d="M32 92 C29 104 29 118 31 130" stroke="#7a5233" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85"/>
+<path d="M56 92 C59 104 59 118 57 130" stroke="#7a5233" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85"/>
 <g class="arm-l"><path d="M31 110 L24 132" class="lo"/><path d="M31 110 L24 132" class="lf"/><circle cx="24" cy="133" r="5" fill="#d9a066" class="o"/></g>
-<g class="leg leg-l"><path d="M37 145 V165" class="lo"/><path d="M37 145 V165" class="lf"/><rect x="28" y="163" width="17" height="9" rx="4" fill="#f5f5f5" class="o"/><path d="M31 169 H42" stroke="#ff8fa3" stroke-width="2" stroke-linecap="round"/></g>
-<g class="leg leg-r"><path d="M51 145 V165" class="lo"/><path d="M51 145 V165" class="lf"/><rect x="43" y="163" width="17" height="9" rx="4" fill="#f5f5f5" class="o"/><path d="M46 169 H57" stroke="#ff8fa3" stroke-width="2" stroke-linecap="round"/></g>
+<g class="leg leg-l"><path d="M37 145 V165" class="lo"/><path d="M37 145 V165" class="lp"/><rect x="28" y="163" width="17" height="9" rx="4" fill="#f5f5f5" class="o"/><path d="M31 169 H42" stroke="#ff8fa3" stroke-width="2" stroke-linecap="round"/></g>
+<g class="leg leg-r"><path d="M51 145 V165" class="lo"/><path d="M51 145 V165" class="lp"/><rect x="43" y="163" width="17" height="9" rx="4" fill="#f5f5f5" class="o"/><path d="M46 169 H57" stroke="#ff8fa3" stroke-width="2" stroke-linecap="round"/></g>
 <rect x="28" y="128" width="32" height="20" rx="5" fill="#2b3a55" class="o"/>
 <rect x="29" y="106" width="30" height="26" rx="7" fill="#ff8fa3" class="o"/>
 <path d="M25 108 Q44 92 63 108 Q44 116 25 108 Z" fill="#e56b82" class="o"/>
@@ -389,7 +401,8 @@ window.KITZO_CHARACTERS = [
 <path d="M33 88 Q37 83 41 88" fill="none" stroke="#3d2412" stroke-width="2" stroke-linecap="round"/><path d="M32 85 L30 83" stroke="#3d2412" stroke-width="1.3" stroke-linecap="round"/>
 <path d="M47 88 Q51 83 55 88" fill="none" stroke="#3d2412" stroke-width="2" stroke-linecap="round"/><path d="M56 85 L58 83" stroke="#3d2412" stroke-width="1.3" stroke-linecap="round"/>
 <path d="M39 95 Q44 101 49 95 Z" fill="#7a3b1e" class="o"/>
-<path d="M25 82 Q27 62 44 60 Q61 62 63 82 Q56 74 49 78 Q46 68 40 78 Q34 74 25 82 Z" fill="#4a2f1c" class="o"/>
+<path d="M25 82 Q27 61 44 60 Q61 61 63 82 Q60 72 53 76 Q50 66 43 74 Q36 68 32 78 Q28 74 25 82 Z" fill="#4a2f1c" class="o"/>
+<path d="M33 67 Q41 62 52 65" stroke="#7a5233" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85"/>
 <path d="M62 68 L52 62 L55 76 Z" fill="#ff8fa3" class="o"/><path d="M62 68 L72 62 L69 76 Z" fill="#ff8fa3" class="o"/><circle cx="62" cy="68" r="2.8" fill="#ff5c8a" class="o"/>
 <!-- Barkinzo (sag) -->
 <g class="arm-l"><path d="M119 110 L126 132" class="lo"/><path d="M119 110 L126 132" class="lf"/><circle cx="126" cy="133" r="5" fill="#d9a066" class="o"/></g>
@@ -408,18 +421,18 @@ window.KITZO_CHARACTERS = [
 <path d="M109 88 Q113 83 117 88" fill="none" stroke="#2b1a10" stroke-width="2" stroke-linecap="round"/>
 <path d="M100 95 Q106 102 112 95 Z" fill="#7a3b1e" class="o"/><rect x="102" y="95" width="8" height="2.4" fill="#ffffff"/>
 <rect x="114" y="91" width="8" height="3.5" rx="1.5" fill="#f4d3a0" class="o" transform="rotate(-25 118 93)"/>
-<path d="M87 78 L90 60 L96 70 L102 54 L108 68 L114 55 L120 70 L125 62 L125 80 Q106 70 87 80 Z" fill="#2b1a10" class="o"/>
+<path d="M87 81 Q86 69 92 65 L94 82 Z" fill="#1c100a" class="o"/>
+<path d="M125 81 Q126 69 120 65 L118 82 Z" fill="#1c100a" class="o"/>
+<path d="M88 80 Q90 66 96 63 Q99 56 106 59 Q110 54 116 58 Q121 56 124 64 Q127 71 124 80 Q118 72 112 75 Q109 68 104 73 Q98 69 94 76 Q91 73 88 80 Z" fill="#2b1a10" class="o"/>
+<path d="M96 66 Q104 61 114 63" stroke="#5a3a24" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85"/>
 <!-- ortak atki -->
 <path d="M26 104 Q44 113 62 104 L88 104 Q106 113 124 104" stroke="#3d2412" stroke-width="9" fill="none" stroke-linecap="round"/>
 <path d="M26 104 Q44 113 62 104 L88 104 Q106 113 124 104" stroke="#e63946" stroke-width="6" fill="none" stroke-linecap="round"/>
 <path d="M26 104 L20 126" stroke="#3d2412" stroke-width="9" stroke-linecap="round"/><path d="M26 104 L20 126" stroke="#e63946" stroke-width="6" stroke-linecap="round"/>
 <path d="M124 104 L130 126" stroke="#3d2412" stroke-width="9" stroke-linecap="round"/><path d="M124 104 L130 126" stroke="#e63946" stroke-width="6" stroke-linecap="round"/>
 <path d="M18 122 H23 M127 122 H132" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
-<!-- el ele + kalpler -->
+<!-- el ele -->
 <circle cx="75" cy="134" r="5.5" fill="#d9a066" class="o"/>
-<path d="M75 118 C75 114 69 113 69 117 C69 121 75 125 75 125 C75 125 81 121 81 117 C81 113 75 114 75 118 Z" fill="#ff5c8a" class="o"/>
-<path d="M75 52 C75 49 71 48 71 51 C71 54 75 57 75 57 C75 57 79 54 79 51 C79 48 75 49 75 52 Z" fill="#ff5c8a" class="o"/>
-<path d="M84 108 L85 111 L88 112 L85 113 L84 116 L83 113 L80 112 L83 111 Z" fill="#ffd23f"/>
 </svg>`,
   },
 ];
