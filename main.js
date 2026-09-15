@@ -25,9 +25,13 @@ const CHAR_H = 174; // 144 karakter + 30 emote alani
 const IDLE_SLEEP_SECONDS = 20 * 60;
 const VOICE_TEST_ARG = '--voice-test=';
 const EXPORT_ICON_ARG = '--export-icon=';
+const THROW_TEST_ARG = '--throw-test='; // gelistirme: virgullu tur listesi, 6 sn arayla oynatilir
 
 let win;
 let tray;
+let marksWin = null; // ekran izleri katmani (ilk firlatmada olusur)
+let marksLoaded = false;
+let marksHideTimer = null;
 let lastMarket = null;
 
 function userFile(name) {
@@ -247,6 +251,93 @@ function createWindow() {
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  const throwTest = argValue(THROW_TEST_ARG);
+  if (throwTest) {
+    win.webContents.once('did-finish-load', () => {
+      const types = throwTest.split(',').map((s) => s.trim()).filter(Boolean);
+      types.forEach((type, i) =>
+        setTimeout(() => {
+          appendVoiceLog(`THROW-TEST: ${type}`);
+          send('throw-now', { type });
+        }, 4000 + i * 6000)
+      );
+    });
+  }
+}
+
+// Ekran izleri: tum calisma alanini kaplayan, tiklamayi gecirgen, odak almayan saydam pencere.
+// Yalnizca bir firlatma oynarken gorunur; ilk kullanimda olusturulur.
+function ensureMarksWindow() {
+  if (marksWin && !marksWin.isDestroyed()) return marksWin;
+  marksLoaded = false;
+  marksWin = new BrowserWindow({
+    show: false,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload-marks.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  marksWin.setIgnoreMouseEvents(true);
+  marksWin.setAlwaysOnTop(true, 'screen-saver');
+  marksWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  marksWin.webContents.once('did-finish-load', () => {
+    marksLoaded = true;
+  });
+  marksWin.on('closed', () => {
+    marksWin = null;
+    marksLoaded = false;
+  });
+  marksWin.loadFile(path.join(__dirname, 'renderer', 'marks.html'));
+  return marksWin;
+}
+
+function marksReady() {
+  const w = ensureMarksWindow();
+  if (marksLoaded) return Promise.resolve(w);
+  return new Promise((resolve) => w.webContents.once('did-finish-load', () => resolve(w)));
+}
+
+function hideMarks() {
+  clearTimeout(marksHideTimer);
+  if (marksWin && !marksWin.isDestroyed() && marksWin.isVisible()) marksWin.hide();
+}
+
+// Karakterin bulundugu ekrani kaplar ve animasyonu baslatir; koordinatlar o ekrana gore verilir.
+async function playMarks(data) {
+  if (!win || win.isDestroyed()) return;
+  const b = win.getBounds();
+  const disp = screen.getDisplayNearestPoint({ x: b.x + CHAR_W / 2, y: b.y + b.height - CHAR_H / 2 });
+  const area = disp.workArea;
+  const w = await marksReady();
+  if (!w || w.isDestroyed()) return;
+  w.setBounds({ x: area.x, y: area.y, width: area.width, height: area.height });
+  w.showInactive();
+  win.moveTop(); // karakter izlerin ustunde kalsin
+  w.webContents.send('marks-play', {
+    type: data.type,
+    charId: data.charId,
+    color: data.color,
+    dir: data.dir,
+    origin: { x: b.x + Number(data.ox || CHAR_W / 2) - area.x, y: b.y + Number(data.oy || CHAR_H / 2) - area.y },
+    width: area.width,
+    height: area.height,
+  });
+  clearTimeout(marksHideTimer);
+  marksHideTimer = setTimeout(hideMarks, 6500); // katman bitis bildirmese de kapanir
 }
 
 function registerIpc() {
@@ -304,6 +395,9 @@ function registerIpc() {
       win.setBounds({ x: b.x, y: below ? b.y : b.y + extra, width: CHAR_W, height: CHAR_H });
     }
   });
+
+  ipcMain.on('throw-mark', (_e, data) => playMarks(data || {}).catch(() => {}));
+  ipcMain.on('marks-done', hideMarks);
 }
 
 // Gelistirme yardimcisi: karakteri 256x256 PNG olarak disari aktarir (kurulum ikonu icin).

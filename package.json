@@ -1,6 +1,6 @@
 {
   "name": "kitzo",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Kitzo - a tiny desktop buddy with voice commands, shortcuts, crypto mood and reminders",
   "author": "Tunca Ichizo",
   "license": "SEE LICENSE IN LICENSE",
@@ -21,6 +21,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "preload-marks.js",
       "actions.json",
       "lib/**/*",
       "renderer/**/*",

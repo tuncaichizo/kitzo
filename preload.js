@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('ichi', {
   quitApp: () => ipcRenderer.send('quit-app'),
   voiceLog: (text) => ipcRenderer.send('voice-log', text),
   voiceReady: () => ipcRenderer.send('voice-ready'),
+  throwMark: (data) => ipcRenderer.send('throw-mark', data),
 
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   getPosition: () => ipcRenderer.invoke('get-position'),
@@ -33,4 +34,5 @@ contextBridge.exposeInMainWorld('ichi', {
   onVoiceProgress: on('voice-model-progress'),
   onVoiceTest: on('voice-test'),
   onListenNow: on('listen-now'),
+  onThrowNow: on('throw-now'),
 });

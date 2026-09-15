@@ -120,6 +120,21 @@ html, body {
   50% { transform: rotate(-140deg); }
 }
 
+/* firlatma: kol geriye gerilir, one savrulur */
+.character.throw #arm-right {
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: throw 0.8s ease-in-out 1;
+}
+
+@keyframes throw {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(-160deg); }
+  42% { transform: rotate(-160deg); }
+  58% { transform: rotate(35deg); }
+  100% { transform: rotate(0deg); }
+}
+
 @keyframes swing-left {
   0%, 100% { transform: rotate(-18deg); }
   50% { transform: rotate(18deg); }

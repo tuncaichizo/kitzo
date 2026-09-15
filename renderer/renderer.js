@@ -36,6 +36,11 @@ const WAKE_PREFIX_EXCLUDE = new Set([
 ]);
 const TENTATIVE_WINDOW_MS = 4500; // sessiz deneme dinlemesi: yaygin kelimeye benzeyen isim eslesmeleri icin
 const TENTATIVE_MAX_MS = 8000;
+// Ekran izleri: karakter ara sira ekrana bir sey firlatir, iz 5 sn icinde silinir (renderer/marks.js)
+const THROW_MIN_MS = 3 * 60000;
+const THROW_MAX_MS = 8 * 60000;
+const THROW_TYPES = ['splat', 'splat', 'splat', 'paws', 'paws', 'paws', 'coin', 'coin', 'star', 'star', 'sticker', 'sticker', 'confetti', 'bubbles'];
+const CHAR_COLORS = { kitzo: '#b388ff', zumi: '#7cf29a', byto: '#5ac8ff', fyra: '#ff9a3c', nocto: '#c084fc', wispa: '#9fe8ff', drayko: '#ff5c5c', nubi: '#ffb347', ozgezo: '#ff8fb1', barkinzo: '#4f8bff' };
 
 const I18N = window.KITZO_I18N;
 const V = window.KitzoVoice;
@@ -71,6 +76,8 @@ const autostartBtn = $('btn-autostart');
 const shortcutsBtn = $('btn-shortcuts');
 const guideBtn = $('btn-guide');
 const sleepBtn = $('btn-sleep');
+const throwBtn = $('btn-throw');
+const marksBtn = $('btn-marks');
 const quitBtn = $('btn-quit');
 const scLabelEl = $('sc-label');
 const scTargetEl = $('sc-target');
@@ -126,6 +133,8 @@ let sleepCause = null;
 let systemIdle = false;
 let lastInteraction = Date.now();
 let quietUntil = 0;
+let marksOn = true; // ekran izleri (rastgele firlatmalar)
+let throwTimer = null;
 
 let micOn = true;
 let listener = null;
@@ -228,6 +237,7 @@ async function init() {
   micOn = savedItem('mic') !== '0';
   stay = savedItem('stay') === '1';
   feedback = savedItem('feedback') !== '0';
+  marksOn = savedItem('marks') !== '0';
 
   applyLanguage();
   loadCharacter(savedItem('character'));
@@ -240,6 +250,7 @@ async function init() {
   bindIpc();
   scheduleNextMove();
   scheduleBlink();
+  scheduleThrow();
 
   setTimeout(() => {
     showEmote('👋', 2500);
@@ -292,6 +303,7 @@ function bindIpc() {
     setTimeout(() => listener.feedUrl(url), 800);
   });
   window.ichi.onListenNow(listenNow);
+  window.ichi.onThrowNow(({ type }) => throwSomething(type));
 }
 
 // ---------- dil ----------
@@ -306,6 +318,7 @@ function applyLanguage() {
   updateSleepButton();
   updateStayButton();
   updateFeedbackButton();
+  updateMarksButton();
   refreshAutostart();
   renderShortcutList();
   renderReminderList();
@@ -426,7 +439,7 @@ function grammarWords() {
       if (clean) words.add(clean);
     }
   };
-  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
+  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
   for (const key of lists) (vc[key] || []).forEach(add);
   for (const entry of vc.chat || []) entry.any.forEach(add);
   Object.keys(vc.units).forEach(add);
@@ -728,6 +741,44 @@ function wave() {
   void charEl.offsetWidth;
   charEl.classList.add('wave');
   setTimeout(() => charEl.classList.remove('wave'), 2200);
+}
+
+// ---------- ekran izleri ----------
+
+function scheduleThrow() {
+  clearTimeout(throwTimer);
+  if (!marksOn) return;
+  throwTimer = setTimeout(() => {
+    const busy = dragging || menuOpen() || sleeping || hovering || teaching || isListening() || Date.now() < quietUntil;
+    if (marksOn && !busy) throwSomething();
+    scheduleThrow();
+  }, THROW_MIN_MS + Math.random() * (THROW_MAX_MS - THROW_MIN_MS));
+}
+
+// Karakter kolunu savurur; iz animasyonu ayri, tiklamayi gecirgen bir pencerede oynar (main.js playMarks)
+function throwSomething(type) {
+  const kind = THROW_TYPES.includes(type) ? type : pick(THROW_TYPES);
+  charEl.classList.remove('throw');
+  void charEl.offsetWidth;
+  charEl.classList.add('throw');
+  setTimeout(() => charEl.classList.remove('throw'), 900);
+  showEmote(kind === 'paws' ? '🐾' : kind === 'bubbles' ? '🫧' : '🎯', 2200);
+  window.ichi.voiceLog(`THROW: ${kind}`);
+  setTimeout(() => {
+    const rect = charEl.getBoundingClientRect();
+    window.ichi.throwMark({
+      type: kind,
+      ox: rect.left + rect.width / 2,
+      oy: rect.top + rect.height * 0.45,
+      dir: charEl.classList.contains('flipped') ? -1 : 1,
+      charId: currentCharId,
+      color: CHAR_COLORS[currentCharId] || '#b388ff',
+    });
+  }, 260);
+}
+
+function updateMarksButton() {
+  marksBtn.textContent = t(marksOn ? 'marksOn' : 'marksOff');
 }
 
 // Dogal goz kirpma; arada bir tek gozle yaramaz kirpis
@@ -1600,6 +1651,11 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
     say(line('awake'), 2500, { replace: true });
     return true;
   }
+  if (has(vc.throw)) {
+    say(line('throwLine'), 2500, { replace: true });
+    setTimeout(() => throwSomething(), 300);
+    return true;
+  }
   if (has(vc.menu)) {
     openMenu();
     return true;
@@ -1683,6 +1739,10 @@ waveBtn.addEventListener('click', () => {
   wave();
   say(line('hello'), 3500);
 });
+throwBtn.addEventListener('click', () => {
+  closeMenu();
+  setTimeout(() => throwSomething(), 350);
+});
 guideBtn.addEventListener('click', () => showSection('guide'));
 shortcutsBtn.addEventListener('click', () => {
   showSection('shortcuts');
@@ -1701,6 +1761,12 @@ feedbackBtn.addEventListener('click', () => {
   feedback = !feedback;
   saveItem('feedback', feedback ? '1' : '0');
   updateFeedbackButton();
+});
+marksBtn.addEventListener('click', () => {
+  marksOn = !marksOn;
+  saveItem('marks', marksOn ? '1' : '0');
+  updateMarksButton();
+  scheduleThrow();
 });
 autostartBtn.addEventListener('click', async () => {
   const on = await window.ichi.getAutostart();

@@ -14,7 +14,8 @@ Everything runs **locally and for free** — no accounts, no API keys.
 - **Market mood** – BTC/ETH prices with 24h change; the buddy gets excited or sad on big moves.
 - **Reminders** – from the menu or by voice, with a Windows notification.
 - **Personality** – time-of-day greetings, random quips, reactions to dragging and click spam, sleeps at night or when you're away.
-- **Actions** – stay / wander, go to corner, wave, sleep.
+- **Actions** – stay / wander, go to corner, wave, throw, sleep.
+- **Screen marks** – every few minutes it throws something onto the screen (paint splat, paw prints, a coin, a star, a sticker, confetti, bubbles) that fades within 5 seconds. Trigger it from Actions or say *"throw something"*; switch it off in Settings.
 - **Multi-monitor** – drag it to any screen.
 - **Global hotkeys** – `Ctrl+Alt+K` opens the menu anywhere; `Ctrl+Alt+L` listens for a command right away (no wake word needed — handy in noisy rooms).
 - **Turkish / English** UI and voice.
@@ -54,6 +55,7 @@ Her şey **yerel ve ücretsiz** çalışır — hesap ya da API anahtarı gerekm
   *"15 dakika sonra hatırlat kahve"*, *"uyu"*, *"bekle"*, *"köşeye git"*, *"menü"*.
 - **Kısayollar** – Ayarlar → Kısayolları Düzenle'den kendi butonlarınızı ekleyin (sesli kelimelerle).
 - **Piyasa, hatırlatıcı, eylemler, dil seçimi, Ctrl+Alt+K** kısayolu.
+- **Ekran izleri** – ara sıra ekrana bir şey fırlatır (boya lekesi, pati izi, coin, yıldız, çıkartma, konfeti, baloncuk); iz 5 saniye içinde silinir. Eylemler → Fırlat ya da "fırlat" de; Ayarlar'dan kapatılabilir.
 
 **Kurulum:** [Releases](../../releases) sayfasından `Kitzo-Setup-x.y.z.exe` dosyasını indirip çalıştırın.
 İlk açılışta İngilizce başlar; Ayarlar → Dil'den Türkçe'ye geçebilirsiniz.
