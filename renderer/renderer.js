@@ -24,10 +24,9 @@ const WAKE_ALIASES = {
   nubi: ['nubi', 'nubii', 'nuubi', 'newbie'],
   ozgezo: ['özgezo', 'özgeso', 'özgezu', 'özge', 'ozge'],
   barkinzo: ['barkınzo', 'barkınso', 'barkinzo', 'barkın', 'barkin'],
-  kutucuzo: ['kutucuzo', 'kutucuso', 'kutucu', 'kutuzo', 'korkutucu', 'korkutucuzor', 'kutucuzor'],
 };
 // Gunluk konusmada gecebilen kisa takma adlar: yalnizca cumle basinda uyandirir
-const START_ONLY_ALIASES = new Set(['zor', 'kutucu', 'korkutucu', 'kizi', 'gitse', 'kitap', 'git', 'kit', 'kid']);
+const START_ONLY_ALIASES = new Set(['zor', 'kizi', 'gitse', 'kitap', 'git', 'kit', 'kid']);
 // Kisa bir cumlenin ilk kelimesi bu kaliba uyuyorsa karaktere seslenilmis sayilir (tanıyıcı "Kitzo"yu
 // "gitse", "kitap", "kızı", "chicco" gibi yaziyor); komut basariyla calisirsa yazim ogrenilir.
 const WAKE_PREFIX = { kitzo: /^(kit|git|kid|kiz|chic|cic|hic)[a-z]{1,5}$/ };
@@ -344,7 +343,7 @@ function renderCharacterList() {
     btn.addEventListener('click', () => {
       if (c.id === currentCharId) return;
       loadCharacter(c.id);
-      showEmote(c.id === 'kutucuzo' ? '💕' : '✨', 2500);
+      showEmote('✨', 2500);
     });
     charListEl.appendChild(btn);
   }
@@ -706,13 +705,8 @@ function summon(id) {
   if (id === currentCharId) return;
   loadCharacter(id);
   jump();
-  if (id === 'kutucuzo') {
-    showEmote('💕', 4000);
-    hideBubble();
-  } else {
-    showEmote('✨', 2500);
-    say(line('switched'), 3000, { replace: true });
-  }
+  showEmote('✨', 2500);
+  say(line('switched'), 3000, { replace: true });
 }
 
 // ---------- gezinme ----------
