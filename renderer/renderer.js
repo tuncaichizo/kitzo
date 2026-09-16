@@ -77,6 +77,7 @@ const shortcutsBtn = $('btn-shortcuts');
 const guideBtn = $('btn-guide');
 const sleepBtn = $('btn-sleep');
 const throwBtn = $('btn-throw');
+const trickBtn = $('btn-trick');
 const marksBtn = $('btn-marks');
 const quitBtn = $('btn-quit');
 const scLabelEl = $('sc-label');
@@ -114,6 +115,7 @@ let dragStartPos = null;
 let hovering = false;
 
 let overlay = null; // { el, extra, below }
+let overlayShiftTotal = 0; // balon/menu acilip kapanirken posY'ye eklenen kaydirmalarin toplami (yurume sirasinda telafi icin)
 let bubbleTimer = null;
 let bubbleQueue = [];
 let emoteTimer = null;
@@ -251,6 +253,7 @@ async function init() {
   scheduleNextMove();
   scheduleBlink();
   scheduleThrow();
+  if (window.KitzoAntics) KitzoAntics.schedule();
 
   setTimeout(() => {
     showEmote('👋', 2500);
@@ -304,6 +307,7 @@ function bindIpc() {
   });
   window.ichi.onListenNow(listenNow);
   window.ichi.onThrowNow(({ type }) => throwSomething(type));
+  window.ichi.onAnticNow(({ name }) => window.KitzoAntics && KitzoAntics.play(name));
 }
 
 // ---------- dil ----------
@@ -439,7 +443,7 @@ function grammarWords() {
       if (clean) words.add(clean);
     }
   };
-  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
+  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'trick', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
   for (const key of lists) (vc[key] || []).forEach(add);
   for (const entry of vc.chat || []) entry.any.forEach(add);
   Object.keys(vc.units).forEach(add);
@@ -537,6 +541,12 @@ function chatReply(tokens) {
     lastChatEntry = entry;
     lastChatAt = Date.now();
     let reply;
+    if (entry.special && entry.special.startsWith('antic:')) {
+      const anticName = entry.special.slice(6);
+      setTimeout(() => window.KitzoAntics && KitzoAntics.play(anticName), 250);
+      lastChatReply = (window.KitzoAntics && KitzoAntics.line(anticName)) || 'Hop! 🎪';
+      return lastChatReply;
+    }
     switch (entry.special) {
       case 'joke':
         reply = pick(vc.jokes);
@@ -629,9 +639,7 @@ function chatReply(tokens) {
         reply = line('sleep');
         break;
       case 'dance':
-        jump();
-        setTimeout(jump, 700);
-        setTimeout(jump, 1400);
+        setTimeout(() => window.KitzoAntics && KitzoAntics.play('dance'), 250);
         reply = lang === 'tr' ? '💃 Mum dansı! 🕺' : '💃 Candle dance! 🕺';
         break;
       case 'jump':
@@ -749,7 +757,7 @@ function scheduleThrow() {
   clearTimeout(throwTimer);
   if (!marksOn) return;
   throwTimer = setTimeout(() => {
-    const busy = dragging || menuOpen() || sleeping || hovering || teaching || isListening() || Date.now() < quietUntil;
+    const busy = dragging || menuOpen() || sleeping || hovering || teaching || isListening() || Date.now() < quietUntil || (window.KitzoAntics && KitzoAntics.busy());
     if (marksOn && !busy) throwSomething();
     scheduleThrow();
   }, THROW_MIN_MS + Math.random() * (THROW_MAX_MS - THROW_MIN_MS));
@@ -806,7 +814,7 @@ function scheduleNextMove() {
   moveTimer = setTimeout(() => {
     // pencere programla tasindiysa mouseleave gelmemis olabilir; hover durumunu dogrula
     if (hovering && !charEl.matches(':hover')) hovering = false;
-    if (dragging || menuOpen() || sleeping || stay || hovering) {
+    if (dragging || menuOpen() || sleeping || stay || hovering || (window.KitzoAntics && KitzoAntics.busy())) {
       scheduleNextMove();
       return;
     }
@@ -832,6 +840,7 @@ function walkTo(targetX, targetY, { ignoreHover = false } = {}) {
   const direction = targetX >= posX ? 1 : -1;
   const startX = posX;
   const startY = posY;
+  const shift0 = overlayShiftTotal; // yol boyunca balon acilirsa hedef de ayni kadar kayar
   const spanX = Math.max(1, Math.abs(targetX - startX));
 
   charEl.classList.remove('idle');
@@ -849,11 +858,11 @@ function walkTo(targetX, targetY, { ignoreHover = false } = {}) {
     }
     posX += direction * WALK_SPEED;
     const progress = clamp(Math.abs(posX - startX) / spanX, 0, 1);
-    posY = Math.round(startY + (targetY - startY) * progress);
+    posY = Math.round(startY + (targetY - startY) * progress + (overlayShiftTotal - shift0));
     const reached = direction > 0 ? posX >= targetX : posX <= targetX;
     if (reached) {
       posX = targetX;
-      posY = targetY;
+      posY = targetY + (overlayShiftTotal - shift0);
       clearInterval(walkTick);
       setIdle();
       scheduleNextMove();
@@ -964,6 +973,7 @@ function bubbleOpen() {
 // Pencere yukari dogru buyudugunde posY kayar; surukleme suruyorsa baslangic noktasi da ayni kadar kaymali
 function shiftPos(dy) {
   posY += dy;
+  overlayShiftTotal += dy;
   if (dragging && dragStartPos) dragStartPos.y += dy;
 }
 
@@ -1656,6 +1666,11 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
     setTimeout(() => throwSomething(), 300);
     return true;
   }
+  if (has(vc.trick)) {
+    say(line('trickLine'), 2500, { replace: true });
+    setTimeout(() => window.KitzoAntics && KitzoAntics.play(), 300);
+    return true;
+  }
   if (has(vc.menu)) {
     openMenu();
     return true;
@@ -1742,6 +1757,10 @@ waveBtn.addEventListener('click', () => {
 throwBtn.addEventListener('click', () => {
   closeMenu();
   setTimeout(() => throwSomething(), 350);
+});
+trickBtn.addEventListener('click', () => {
+  closeMenu();
+  setTimeout(() => window.KitzoAntics && KitzoAntics.play(), 350);
 });
 guideBtn.addEventListener('click', () => showSection('guide'));
 shortcutsBtn.addEventListener('click', () => {

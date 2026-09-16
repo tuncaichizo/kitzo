@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const on = (channel) => (cb) => ipcRenderer.on(channel, (_e, data) => cb(data));
 
 contextBridge.exposeInMainWorld('ichi', {
-  moveWindow: (x, y) => ipcRenderer.send('move-window', { x, y }),
+  moveWindow: (x, y, remember = true) => ipcRenderer.send('move-window', { x, y, remember }),
   setOverlay: (opts) => ipcRenderer.send('set-overlay', opts),
   runAction: (id) => ipcRenderer.send('run-action', id),
   quitApp: () => ipcRenderer.send('quit-app'),
@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('ichi', {
 
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   getPosition: () => ipcRenderer.invoke('get-position'),
+  getCursor: () => ipcRenderer.invoke('get-cursor'),
   getActions: () => ipcRenderer.invoke('get-actions'),
   addAction: (data) => ipcRenderer.invoke('add-action', data),
   removeAction: (id) => ipcRenderer.invoke('remove-action', id),
@@ -35,4 +36,5 @@ contextBridge.exposeInMainWorld('ichi', {
   onVoiceTest: on('voice-test'),
   onListenNow: on('listen-now'),
   onThrowNow: on('throw-now'),
+  onAnticNow: on('antic-now'),
 });

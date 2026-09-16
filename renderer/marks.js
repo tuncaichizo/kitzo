@@ -248,6 +248,61 @@
     });
   }
 
+  // Hokkabazlik: iki el arasinda uc top
+  async function juggle(o) {
+    const L = { x: o.x - 22, y: o.y };
+    const R = { x: o.x + 22, y: o.y };
+    const balls = [0, 1, 2].map((i) => ({
+      d: node('proj', `<div class="ball" style="width:15px;height:15px;background:${PALETTE[(i * 3) % PALETTE.length]}"></div>`, o.x, o.y),
+      ph: i * 400,
+    }));
+    const period = 1200;
+    const half = 600;
+    const h = 80;
+    await animate(3000, (t) => {
+      const ms = t * 3000;
+      for (const b of balls) {
+        const k = ((ms + b.ph) % period) / half; // 0..2
+        const goingRight = k < 1;
+        const u = goingRight ? k : k - 1;
+        const from = goingRight ? L : R;
+        const to = goingRight ? R : L;
+        place(b.d, from.x + (to.x - from.x) * u, from.y - h * 4 * u * (1 - u), 0);
+      }
+    });
+  }
+
+  // Duman bulutu: ninja kaybolmasi / belirmesi
+  async function puff(o) {
+    const parts = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + rnd(-0.3, 0.3);
+      const size = rnd(18, 30).toFixed(0);
+      const d = node('smoke', `<div class="smoke" style="width:${size}px;height:${size}px"></div>`, o.x, o.y);
+      parts.push({ d, tx: o.x + Math.cos(a) * rnd(30, 60), ty: o.y + Math.sin(a) * rnd(30, 60) - 10 });
+    }
+    await animate(650, (t) => {
+      const e = easeOut(t);
+      for (const p of parts) {
+        place(p.d, o.x + (p.tx - o.x) * e, o.y + (p.ty - o.y) * e, 0, `scale(${(0.5 + e * 1.2).toFixed(2)})`);
+        p.d.style.opacity = String(0.9 * (1 - t));
+      }
+    });
+    for (const p of parts) p.d.remove();
+  }
+
+  // Top: ayaktan yuvarlanir, kucuk sekmelerle yavaslar
+  async function kick(o, dir) {
+    const dist = rnd(260, 440);
+    const svg = '<svg width="26" height="26" viewBox="-13 -13 26 26"><circle r="12" fill="#fff" stroke="#333" stroke-width="1.5"/><polygon points="0,-6 5.7,-1.9 3.5,4.9 -3.5,4.9 -5.7,-1.9" fill="#222"/></svg>';
+    const b = node('proj', svg, o.x, o.y);
+    await animate(1600, (t) => {
+      const e = easeOut(t);
+      const bounce = Math.abs(Math.sin(t * Math.PI * 3)) * 28 * (1 - t);
+      place(b, o.x + dir * dist * e, o.y - bounce, dir * 720 * e);
+    });
+  }
+
   async function play(data) {
     const id = ++session;
     layer.replaceChildren();
@@ -275,6 +330,9 @@
         case 'sticker': await sticker(o, dir); break;
         case 'confetti': await confetti(o, dir); break;
         case 'bubbles': await bubbles(o, dir); break;
+        case 'juggle': await juggle(o); break;
+        case 'puff': await puff(o); break;
+        case 'kick': await kick(o, dir); break;
         default: await splat(o, dir, color);
       }
     } catch {

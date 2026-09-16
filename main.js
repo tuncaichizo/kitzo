@@ -26,6 +26,7 @@ const IDLE_SLEEP_SECONDS = 20 * 60;
 const VOICE_TEST_ARG = '--voice-test=';
 const EXPORT_ICON_ARG = '--export-icon=';
 const THROW_TEST_ARG = '--throw-test='; // gelistirme: virgullu tur listesi, 6 sn arayla oynatilir
+const ANTIC_TEST_ARG = '--antic-test='; // gelistirme: virgullu numara listesi, 7 sn arayla oynatilir
 
 let win;
 let tray;
@@ -252,6 +253,18 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  const anticTest = argValue(ANTIC_TEST_ARG);
+  if (anticTest) {
+    win.webContents.once('did-finish-load', () => {
+      const names = anticTest.split(',').map((s) => s.trim()).filter(Boolean);
+      names.forEach((name, i) =>
+        setTimeout(() => {
+          appendVoiceLog(`ANTIC-TEST: ${name}`);
+          send('antic-now', { name });
+        }, 4000 + i * 7000)
+      );
+    });
+  }
   const throwTest = argValue(THROW_TEST_ARG);
   if (throwTest) {
     win.webContents.once('did-finish-load', () => {
@@ -343,6 +356,7 @@ async function playMarks(data) {
 function registerIpc() {
   ipcMain.handle('get-displays', () => screen.getAllDisplays().map((d) => d.workArea));
   ipcMain.handle('get-position', () => win.getPosition());
+  ipcMain.handle('get-cursor', () => screen.getCursorScreenPoint());
 
   ipcMain.handle('get-actions', () => loadActions());
   ipcMain.handle('add-action', (_e, data) => addAction(data || {}));
@@ -382,9 +396,9 @@ function registerIpc() {
 
   ipcMain.on('quit-app', () => app.quit());
 
-  ipcMain.on('move-window', (_e, { x, y }) => {
+  ipcMain.on('move-window', (_e, { x, y, remember }) => {
     win.setPosition(Math.round(x), Math.round(y), false);
-    rememberPosition(Math.round(x), Math.round(y));
+    if (remember !== false) rememberPosition(Math.round(x), Math.round(y)); // numaralar gecici konumlari kaydetmez
   });
 
   ipcMain.on('set-overlay', (_e, { open, extra, below }) => {
