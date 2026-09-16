@@ -49,8 +49,9 @@ html, body {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
 }
 
+/* Surekli animasyonlar adimli: saydam pencere her karede yeniden cizildigi icin 60 kare/sn islemciyi yoruyor */
 .character.idle svg {
-  animation: bob 2.4s ease-in-out infinite;
+  animation: bob 2.4s steps(6, jump-none) infinite;
 }
 
 @keyframes bob {
@@ -284,7 +285,7 @@ html, body {
   100% { transform: rotate(0deg); }
 }
 
-.character.antic-doze svg { animation: sleep-bob 3s ease-in-out infinite; }
+.character.antic-doze svg { animation: sleep-bob 3s steps(5, jump-none) infinite; }
 
 .character.antic-kick #leg-right,
 .character.antic-kick .leg-r {
@@ -343,7 +344,7 @@ html, body {
 }
 
 .character.sleeping svg {
-  animation: sleep-bob 4s ease-in-out infinite;
+  animation: sleep-bob 4s steps(5, jump-none) infinite;
   filter: brightness(0.75) drop-shadow(0 2px 4px rgba(0,0,0,0.35));
 }
 
@@ -394,7 +395,7 @@ html, body {
 }
 
 .emote.pulse {
-  animation: pulse 1.6s ease-in-out infinite;
+  animation: pulse 1.6s steps(4, jump-none) infinite;
 }
 
 @keyframes pop {

@@ -33,6 +33,8 @@ let tray;
 let marksWin = null; // ekran izleri katmani (ilk firlatmada olusur)
 let marksLoaded = false;
 let marksHideTimer = null;
+let marksIdleTimer = null; // bos dururken pencere kapatilir (bellek)
+const MARKS_IDLE_MS = 120000;
 let lastMarket = null;
 
 function userFile(name) {
@@ -327,11 +329,16 @@ function marksReady() {
 function hideMarks() {
   clearTimeout(marksHideTimer);
   if (marksWin && !marksWin.isDestroyed() && marksWin.isVisible()) marksWin.hide();
+  clearTimeout(marksIdleTimer);
+  marksIdleTimer = setTimeout(() => {
+    if (marksWin && !marksWin.isDestroyed() && !marksWin.isVisible()) marksWin.destroy();
+  }, MARKS_IDLE_MS);
 }
 
 // Karakterin bulundugu ekrani kaplar ve animasyonu baslatir; koordinatlar o ekrana gore verilir.
 async function playMarks(data) {
   if (!win || win.isDestroyed()) return;
+  clearTimeout(marksIdleTimer);
   const b = win.getBounds();
   const disp = screen.getDisplayNearestPoint({ x: b.x + CHAR_W / 2, y: b.y + b.height - CHAR_H / 2 });
   const area = disp.workArea;
@@ -443,7 +450,7 @@ if (!exportingIcon && !app.requestSingleInstanceLock()) {
 }
 app.on('second-instance', openMenuFromOutside);
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (exportingIcon) {
     exportIcon(path.resolve(argValue(EXPORT_ICON_ARG)));
     return;
@@ -453,6 +460,13 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     callback(permission === 'media');
   });
+  // vosk-browser ses modelini IndexedDB'ye kopyalar ve her acilista tum kopyalari bellege yukler;
+  // model zaten kurulumla geldigi icin onbellek gereksiz: her acilista temizlenir (RAM 4 GB -> ~250 MB).
+  try {
+    await session.defaultSession.clearStorageData({ storages: ['indexdb'] });
+  } catch {
+    // temizlenemezse uygulama yine calisir
+  }
 
   setAutostart(isAutostart());
   registerIpc();

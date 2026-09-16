@@ -204,17 +204,14 @@
   async function createListener({ modelUrl, onResult, onPartial, onSpeech, onGrammarResult, deviceId }) {
     if (!window.Vosk) throw new Error('vosk-browser not loaded');
     const model = await window.Vosk.createModel(modelUrl);
-    const ctx = new AudioContext();
+    // Model 16 kHz calisir; ses de 16 kHz yakalanirsa taniyiciya 3 kat az veri gider (islemci tasarrufu)
+    let ctx;
+    try {
+      ctx = new AudioContext({ sampleRate: 16000 });
+    } catch {
+      ctx = new AudioContext();
+    }
     await ctx.resume();
-    const recognizer = new model.KaldiRecognizer(ctx.sampleRate);
-    recognizer.on('result', (msg) => {
-      const text = (msg.result && msg.result.text) || '';
-      if (text.trim()) onResult(text);
-    });
-    recognizer.on('partialresult', (msg) => {
-      const text = (msg.result && msg.result.partial) || '';
-      if (text.trim()) onPartial(text);
-    });
 
     // Dinleme penceresinde ikinci bir taniyici sadece bilinen komut kelimelerini dinler (cok daha isabetli).
     let grammarRecognizer = null;
@@ -251,8 +248,27 @@
       delete audio.deviceId;
       stream = await navigator.mediaDevices.getUserMedia({ video: false, audio });
     }
-    const source = ctx.createMediaStreamSource(stream);
-    const node = ctx.createScriptProcessor(4096, 1, 1);
+    let source;
+    try {
+      source = ctx.createMediaStreamSource(stream);
+    } catch {
+      // bazi surucular farkli ornekleme hizini desteklemez: varsayilan hiza don
+      await ctx.close();
+      ctx = new AudioContext();
+      await ctx.resume();
+      source = ctx.createMediaStreamSource(stream);
+    }
+    const recognizer = new model.KaldiRecognizer(ctx.sampleRate);
+    recognizer.on('result', (msg) => {
+      const text = (msg.result && msg.result.text) || '';
+      if (text.trim()) onResult(text);
+    });
+    recognizer.on('partialresult', (msg) => {
+      const text = (msg.result && msg.result.partial) || '';
+      if (text.trim()) onPartial(text);
+    });
+    // 16 kHz'de 2048 ornek = 128 ms; 48 kHz'de 4096 = 85 ms (kapi tepkisi benzer kalsin)
+    const node = ctx.createScriptProcessor(ctx.sampleRate >= 32000 ? 4096 : 2048, 1, 1);
     let noiseFloor = 0.002;
     let ambient = 0.002; // surekli arka plan sesi (TV/muzik) icin yavas ortalama
     let activeUntil = 0;
