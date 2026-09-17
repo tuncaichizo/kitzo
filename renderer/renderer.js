@@ -78,6 +78,7 @@ const guideBtn = $('btn-guide');
 const sleepBtn = $('btn-sleep');
 const throwBtn = $('btn-throw');
 const trickBtn = $('btn-trick');
+const powerBtn = $('btn-power');
 const marksBtn = $('btn-marks');
 const quitBtn = $('btn-quit');
 const scLabelEl = $('sc-label');
@@ -306,6 +307,7 @@ function bindIpc() {
     setTimeout(() => listener.feedUrl(url), 800);
   });
   window.ichi.onListenNow(listenNow);
+  window.ichi.onSetCharacter(({ id }) => loadCharacter(id)); // gelistirme: --antic-test ile birlikte --char=
   window.ichi.onThrowNow(({ type }) => throwSomething(type));
   window.ichi.onAnticNow(({ name }) => window.KitzoAntics && KitzoAntics.play(name));
 }
@@ -443,7 +445,7 @@ function grammarWords() {
       if (clean) words.add(clean);
     }
   };
-  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'trick', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
+  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'trick', 'power', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
   for (const key of lists) (vc[key] || []).forEach(add);
   for (const entry of vc.chat || []) entry.any.forEach(add);
   Object.keys(vc.units).forEach(add);
@@ -1671,6 +1673,12 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
     setTimeout(() => window.KitzoAntics && KitzoAntics.play(), 300);
     return true;
   }
+  if (has(vc.power)) {
+    const msg = (window.KitzoAntics && KitzoAntics.line('power')) || line('trickLine');
+    say(msg, 2500, { replace: true });
+    setTimeout(() => window.KitzoAntics && KitzoAntics.play('power'), 300);
+    return true;
+  }
   if (has(vc.menu)) {
     openMenu();
     return true;
@@ -1761,6 +1769,10 @@ throwBtn.addEventListener('click', () => {
 trickBtn.addEventListener('click', () => {
   closeMenu();
   setTimeout(() => window.KitzoAntics && KitzoAntics.play(), 350);
+});
+powerBtn.addEventListener('click', () => {
+  closeMenu();
+  setTimeout(() => window.KitzoAntics && KitzoAntics.play('power'), 350);
 });
 guideBtn.addEventListener('click', () => showSection('guide'));
 shortcutsBtn.addEventListener('click', () => {

@@ -72,6 +72,10 @@
     });
   }
 
+  function mark(type, extra = {}) {
+    if (marksOn) sendMark(type, extra);
+  }
+
   function sendMark(type, extra = {}) {
     const rect = charEl.getBoundingClientRect();
     window.ichi.throwMark({
@@ -83,6 +87,18 @@
       color: CHAR_COLORS[currentCharId] || '#b388ff',
       ...extra,
     });
+  }
+
+  function abilityLine(charId) {
+    const list = (T.lines.abilities || {})[charId];
+    const text = Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : list;
+    return fill(text || '✨', { name: currentName() });
+  }
+
+  function abilitySay(charId, always = false) {
+    if (!always && Math.random() > SAY_CHANCE) return;
+    if (Date.now() < quietUntil || menuOpen()) return;
+    say(abilityLine(charId), 2600, { replace: true });
   }
 
   function anticLine(name) {
@@ -108,6 +124,195 @@
       return touches && overlapY;
     });
   }
+
+  // w: rastgele secim agirligi; moves: pencereyi tasir (bekle modunda secilmez); overlay: ekran katmani kullanir
+  // Her karakterin kendine has bir yetenegi: rastgele numara havuzuna kendi karakteri secili oldugunda
+  // katilir, "Eylemler > Yetenek" ile veya "yetenegini goster" sohbet kalibiyla dogrudan da cagrilabilir.
+  const ABILITIES = {
+    kitzo: {
+      w: 3,
+      moves: true,
+      async run() {
+        mark('glitch');
+        add('ability-cyber');
+        showEmote('⚡', 1200);
+        await pause(260);
+        const d = currentDisplay();
+        let dir = facing();
+        let target = posX + dir * rnd(240, 420);
+        if (target < d.x + 10 || target > d.x + d.width - CHAR_W - 10) {
+          dir = -dir;
+          target = posX + dir * rnd(240, 420);
+        }
+        target = clampX(target);
+        face(dir);
+        await glide(target, posY, 260, easeOut);
+        mark('glitch');
+        abilitySay('kitzo');
+        await pause(300);
+        remove('ability-cyber');
+      },
+    },
+    zumi: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-melt');
+        showEmote('🫠', 2000);
+        mark('puddle');
+        abilitySay('zumi', true);
+        await pause(1600);
+        remove('ability-melt');
+      },
+    },
+    byto: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-scan');
+        showEmote('📡', 1800);
+        mark('scan');
+        abilitySay('byto');
+        await pause(1000);
+        remove('ability-scan');
+      },
+    },
+    fyra: {
+      w: 2,
+      moves: true,
+      async run() {
+        add('ability-flame');
+        mark('trail', { style: 'flame' });
+        showEmote('🔥', 1600);
+        const d = currentDisplay();
+        let dir = facing();
+        let target = posX + dir * rnd(220, 380);
+        if (target < d.x + 10 || target > d.x + d.width - CHAR_W - 10) {
+          dir = -dir;
+          target = posX + dir * rnd(220, 380);
+        }
+        target = clampX(target);
+        face(dir);
+        walkOn();
+        await glide(target, posY, 500, easeOut);
+        walkOff();
+        abilitySay('fyra');
+        await pause(300);
+        remove('ability-flame');
+      },
+    },
+    nocto: {
+      w: 2,
+      moves: true,
+      async run() {
+        const d = currentDisplay();
+        const startY = posY;
+        add('ability-wings');
+        showEmote('🌙', 2000);
+        mark('trail', { style: 'feather' });
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        face(dir);
+        const targetX = clampX(posX + dir * rnd(200, 380));
+        const targetY = Math.max(d.y + 10, startY - rnd(50, 90));
+        walkOn();
+        await glide(targetX, targetY, 900, easeInOut);
+        await pause(300);
+        abilitySay('nocto');
+        await glide(targetX, startY, 500, easeIn);
+        walkOff();
+        remove('ability-wings');
+      },
+    },
+    wispa: {
+      w: 2,
+      moves: true,
+      async run() {
+        add('ability-phase');
+        showEmote('👻', 1800);
+        mark('trail', { style: 'wisp' });
+        const d = currentDisplay();
+        let dir = facing();
+        let target = posX + dir * rnd(200, 380);
+        if (target < d.x + 10 || target > d.x + d.width - CHAR_W - 10) {
+          dir = -dir;
+          target = posX + dir * rnd(200, 380);
+        }
+        target = clampX(target);
+        face(dir);
+        await glide(target, posY, 900, easeInOut);
+        abilitySay('wispa');
+        await pause(300);
+        remove('ability-phase');
+      },
+    },
+    drayko: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-firebreath');
+        showEmote('🔥', 2000);
+        await pause(200);
+        mark('firebreath');
+        abilitySay('drayko', true);
+        await pause(900);
+        remove('ability-firebreath');
+      },
+    },
+    nubi: {
+      w: 2,
+      moves: true,
+      async run() {
+        add('ability-iceslide');
+        showEmote('🧊', 1800);
+        mark('trail', { style: 'ice', color: '#8fd6ff' });
+        const d = currentDisplay();
+        let dir = facing();
+        let target = posX + dir * rnd(220, 380);
+        if (target < d.x + 10 || target > d.x + d.width - CHAR_W - 10) {
+          dir = -dir;
+          target = posX + dir * rnd(220, 380);
+        }
+        target = clampX(target);
+        face(dir);
+        await glide(target, posY, 700, easeOut);
+        abilitySay('nubi');
+        await pause(400);
+        remove('ability-iceslide');
+      },
+    },
+    ozgezo: {
+      w: 2,
+      moves: true,
+      async run() {
+        const d = currentDisplay();
+        const startY = posY;
+        add('ability-shaman', 'ability-eyes-closed');
+        showEmote('🍃', 2400);
+        mark('trail', { style: 'leaf', color: '#7cbf5a' });
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        face(dir);
+        const targetX = clampX(posX + dir * rnd(220, 400));
+        const targetY = Math.max(d.y + 10, startY - rnd(60, 100));
+        await glide(targetX, targetY, 1100, easeInOut);
+        abilitySay('ozgezo');
+        await pause(500);
+        await glide(targetX, startY, 700, easeIn);
+        remove('ability-shaman', 'ability-eyes-closed');
+      },
+    },
+    barkinzo: {
+      w: 2,
+      moves: false,
+      async run() {
+        add('ability-hacker');
+        showEmote('💻', 2600);
+        mark('matrix');
+        abilitySay('barkinzo', true);
+        await pause(2400);
+        remove('ability-hacker');
+      },
+    },
+  };
 
   // w: rastgele secim agirligi; moves: pencereyi tasir (bekle modunda secilmez); overlay: ekran katmani kullanir
   const ANTICS = {
@@ -379,21 +584,29 @@
   };
 
   function pickName(explicit) {
+    const ability = ABILITIES[currentCharId];
+    if (explicit === 'power') return ability ? 'power' : pickName();
     if (explicit && ANTICS[explicit]) return explicit;
     let names = Object.keys(ANTICS).filter((n) => n !== lastName);
     if (stay) names = names.filter((n) => !ANTICS[n].moves);
     if (!marksOn) names = names.filter((n) => !ANTICS[n].overlay);
-    const total = names.reduce((s, n) => s + ANTICS[n].w, 0);
+    const weighted = names.map((n) => [n, ANTICS[n].w]);
+    if (ability && lastName !== 'power' && !(stay && ability.moves)) weighted.push(['power', ability.w]);
+    const total = weighted.reduce((s, [, w]) => s + w, 0);
     let r = Math.random() * total;
-    for (const n of names) {
-      r -= ANTICS[n].w;
+    for (const [n, w] of weighted) {
+      r -= w;
       if (r <= 0) return n;
     }
-    return names[names.length - 1];
+    return weighted[weighted.length - 1][0];
+  }
+
+  function getEntry(name) {
+    return name === 'power' ? ABILITIES[currentCharId] : ANTICS[name];
   }
 
   function cleanup() {
-    for (const c of [...charEl.classList]) if (c.startsWith('antic-')) charEl.classList.remove(c);
+    for (const c of [...charEl.classList]) if (c.startsWith('antic-') || c.startsWith('ability-')) charEl.classList.remove(c);
     charEl.classList.remove('walking');
     if (!sleeping) charEl.classList.add('idle');
     if (!dragging) window.ichi.moveWindow(posX, posY); // son konum kaydedilsin
@@ -409,7 +622,7 @@
     setIdle();
     window.ichi.voiceLog(`ANTIC: ${name} @${posX},${posY}`);
     try {
-      await ANTICS[name].run();
+      await getEntry(name).run();
     } catch {
       // yarida kesildi (surukleme / menu / uyku)
     } finally {
@@ -430,5 +643,12 @@
     }, ANTIC_MIN_MS + Math.random() * (ANTIC_MAX_MS - ANTIC_MIN_MS));
   }
 
-  window.KitzoAntics = { play, schedule, line: anticLine, busy: () => busy, names: () => Object.keys(ANTICS) };
+  window.KitzoAntics = {
+    play,
+    schedule,
+    line: (name) => (name === 'power' ? abilityLine(currentCharId) : anticLine(name)),
+    busy: () => busy,
+    names: () => Object.keys(ANTICS),
+    hasPower: () => Boolean(ABILITIES[currentCharId]),
+  };
 })();

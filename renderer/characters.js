@@ -359,6 +359,14 @@ window.KITZO_CHARACTERS = [
 <path d="M103 46 Q104 30 96 24 L94 48 Z" fill="#1c100a" class="o"/>
 <path d="M48 46 Q50 26 60 22 Q64 12 74 16 Q80 8 90 14 Q98 12 102 24 Q106 34 102 46 Q94 36 84 40 Q80 30 72 38 Q64 32 58 42 Q52 38 48 46 Z" fill="#2b1a10" class="o"/>
 <path d="M60 26 Q72 18 88 20" stroke="#5a3a24" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
+<!-- Hacker yetenegi sirasinda gorunur (renderer/antics.js: ability-hacker sinifi) -->
+<g class="hacker-gear">
+<path d="M40 44 Q36 6 75 2 Q114 6 110 44 Q108 50 100 46 Q102 16 75 12 Q48 16 50 46 Q42 50 40 44 Z" fill="#1c1f26" class="o"/>
+<rect x="53" y="48" width="44" height="13" rx="6" fill="#0d0f14" class="o"/>
+<rect x="72" y="50" width="6" height="7" fill="#0d0f14"/>
+<ellipse cx="63" cy="54" rx="5" ry="2.4" fill="#4fd1ff" opacity="0.55"/>
+<ellipse cx="87" cy="54" rx="5" ry="2.4" fill="#4fd1ff" opacity="0.55"/>
+</g>
 </svg>`,
   },
 ];

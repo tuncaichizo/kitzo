@@ -259,11 +259,15 @@ function createWindow() {
   if (anticTest) {
     win.webContents.once('did-finish-load', () => {
       const names = anticTest.split(',').map((s) => s.trim()).filter(Boolean);
+      const char = argValue('--char=');
+      // renderer'in init()/bindIpc() calismasi icin bekle; erken gonderilirse 'set-character' dinleyicisi henuz yokken kaybolur
+      const charDelay = char ? 4000 : 0;
+      if (char) setTimeout(() => send('set-character', { id: char }), charDelay);
       names.forEach((name, i) =>
         setTimeout(() => {
           appendVoiceLog(`ANTIC-TEST: ${name}`);
           send('antic-now', { name });
-        }, 4000 + i * 7000)
+        }, charDelay + 800 + i * 7000)
       );
     });
   }

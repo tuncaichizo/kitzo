@@ -99,6 +99,12 @@
         return `<svg width="30" height="34" viewBox="-15 -17 30 34"><path d="M0 -14 C6 -4 11 2 11 7 A11 11 0 0 1 -11 7 C-11 2 -6 -4 0 -14 Z" fill="${color}" opacity="0.9"/><ellipse cx="-4" cy="5" rx="2.5" ry="4" fill="#fff" opacity="0.35"/></svg>`;
       case 'wisp':
         return `<svg width="36" height="24" viewBox="-18 -12 36 24"><ellipse rx="14" ry="7" fill="${color}" opacity="0.55"/><ellipse cx="-4" cy="-2" rx="6" ry="3.5" fill="#fff" opacity="0.35"/></svg>`;
+      case 'flame':
+        return `<svg width="28" height="34" viewBox="-14 -20 28 34"><path d="M0 -18 C7 -8 12 -1 10 7 A10 10 0 0 1 -10 7 C-12 -1 -7 -8 0 -18 Z" fill="${color}" opacity="0.9"/><path d="M0 -6 C3 -1 5 3 4 7 A4 4 0 0 1 -4 7 C-5 3 -3 -1 0 -6 Z" fill="#ffe066" opacity="0.85"/></svg>`;
+      case 'ice':
+        return `<svg width="26" height="26" viewBox="-13 -13 26 26"><polygon points="0,-12 3,-3 12,0 3,3 0,12 -3,3 -12,0 -3,-3" fill="${color}" opacity="0.9"/><circle r="2.4" fill="#ffffff" opacity="0.8"/></svg>`;
+      case 'leaf':
+        return `<svg width="26" height="20" viewBox="-13 -10 26 20"><path d="M-12 0 C-6 -10 6 -10 12 0 C6 10 -6 10 -12 0 Z" fill="${color}" opacity="0.9"/><path d="M-11 0 H11" stroke="#3d6b2f" stroke-width="1.2" opacity="0.6"/></svg>`;
       default: // paw
         return `<svg width="34" height="34" viewBox="-17 -17 34 34"><g fill="${color}" opacity="0.9"><ellipse cx="0" cy="5" rx="8" ry="6.5"/><circle cx="-8.5" cy="-3" r="3.4"/><circle cx="-3" cy="-8" r="3.4"/><circle cx="3" cy="-8" r="3.4"/><circle cx="8.5" cy="-3" r="3.4"/></g></svg>`;
     }
@@ -291,6 +297,88 @@
     for (const p of parts) p.d.remove();
   }
 
+  // Hizli renk kayması: siber sicramanin baslangic/varis noktasinda cikan RGB-split parlamasi
+  async function glitch(o) {
+    const layers = [
+      { color: 'rgba(255,0,150,0.55)', dx: -5 },
+      { color: 'rgba(0,220,255,0.55)', dx: 5 },
+      { color: 'rgba(255,255,255,0.4)', dx: 0 },
+    ].map(({ color, dx }) => node('mark', `<div style="width:44px;height:58px;background:${color};border-radius:6px"></div>`, o.x + dx, o.y));
+    await animate(420, (t) => {
+      const op = String(Math.max(0, (1 - t) * 0.9));
+      for (const d of layers) d.style.opacity = op;
+    });
+    for (const d of layers) d.remove();
+  }
+
+  // Erime golcugu: karakterin ayaklarinin biraktigi yassi iz
+  function puddle(o, color) {
+    const rx = 34;
+    const ry = 12;
+    const svg = `<svg width="${(rx + 4) * 2}" height="${(ry + 4) * 2}" viewBox="${-(rx + 4)} ${-(ry + 4)} ${(rx + 4) * 2} ${(ry + 4) * 2}"><ellipse rx="${rx}" ry="${ry}" fill="${color}" opacity="0.85"/><ellipse rx="${rx * 0.55}" ry="${ry * 0.45}" cy="${-ry * 0.3}" fill="#ffffff" opacity="0.2"/></svg>`;
+    node('mark', svg, o.x, o.y + 55, 0);
+  }
+
+  // Yesil kod yagmuru: hacker modu
+  async function matrixRain(o) {
+    const glyphSet = '01@#$%&アイウエオカキクケコ'.split('');
+    const cols = 6;
+    const items = [];
+    for (let i = 0; i < cols; i++) {
+      const x = o.x + (i - (cols - 1) / 2) * 16 + rnd(-4, 4);
+      const startY = o.y - 90 - rnd(0, 40);
+      const glyphs = Array.from({ length: 4 }, () => pick(glyphSet));
+      const d = node('mark', `<div style="font:700 15px monospace;color:#39ff6a;text-shadow:0 0 4px #22ff55;line-height:15px;text-align:center;opacity:.9">${glyphs.join('<br>')}</div>`, x, startY);
+      items.push({ d, x, y0: startY, dist: rnd(90, 150) });
+    }
+    await animate(1400, (t) => {
+      for (const it of items) {
+        place(it.d, it.x, it.y0 + it.dist * t);
+        it.d.style.opacity = String(t < 0.7 ? 0.9 : 0.9 * (1 - (t - 0.7) / 0.3));
+      }
+    });
+    for (const it of items) it.d.remove();
+  }
+
+  // Radar tarama halkalari: saf CSS ile buyuyup solar (bkz. marks.html .scan-ring)
+  async function scanRings(o) {
+    const spawn = (delay) =>
+      setTimeout(() => {
+        const d = document.createElement('div');
+        d.className = 'scan-ring';
+        d.style.left = `${o.x}px`;
+        d.style.top = `${o.y}px`;
+        layer.appendChild(d);
+        setTimeout(() => d.remove(), 950);
+      }, delay);
+    spawn(0);
+    spawn(250);
+    spawn(500);
+    await wait(1300);
+  }
+
+  // Ates nefesi: agizdan yone dogru sacilan alev parcaciklari
+  async function firebreath(o, dir) {
+    const parts = Array.from({ length: 14 }, () => {
+      const spread = rnd(-0.4, 0.4);
+      const dist = rnd(120, 260);
+      const size = rnd(10, 20).toFixed(0);
+      const color = pick(['#ff5c1a', '#ff8a3c', '#ffce54']);
+      const d = node('mark', `<div style="width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle,${color},rgba(255,90,20,0) 70%)"></div>`, o.x, o.y);
+      return { d, tx: o.x + Math.cos(spread) * dist * dir, ty: o.y + Math.sin(spread) * dist * 0.5, delay: rnd(0, 150) };
+    });
+    await animate(750, (t) => {
+      const ms = t * 750;
+      for (const p of parts) {
+        const pt = clamp((ms - p.delay) / 500, 0, 1);
+        const e = easeOut(pt);
+        place(p.d, o.x + (p.tx - o.x) * e, o.y + (p.ty - o.y) * e);
+        p.d.style.opacity = String(pt <= 0 ? 0 : 1 - pt * 0.9);
+      }
+    });
+    for (const p of parts) p.d.remove();
+  }
+
   // Top: ayaktan yuvarlanir, kucuk sekmelerle yavaslar
   async function kick(o, dir) {
     const dist = rnd(260, 440);
@@ -333,6 +421,12 @@
         case 'juggle': await juggle(o); break;
         case 'puff': await puff(o); break;
         case 'kick': await kick(o, dir); break;
+        case 'trail': await trail(o, dir, data.color, data.style || 'paw'); break;
+        case 'glitch': await glitch(o); break;
+        case 'puddle': puddle(o, data.color); break;
+        case 'matrix': await matrixRain(o); break;
+        case 'scan': await scanRings(o); break;
+        case 'firebreath': await firebreath(o, dir); break;
         default: await splat(o, dir, color);
       }
     } catch {
