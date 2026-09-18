@@ -313,8 +313,13 @@
       }
       previous = scaled;
     };
+    // ScriptProcessorNode'un calismasi icin bir hedefe bagli olmasi gerekiyor; onaudioprocess ciktiya
+    // hicbir sey yazmadigi icin normalde sessiz, ama garanti olsun diye kazanci 0 yapilmis bir dugumden geciriliyor.
+    const silence = ctx.createGain();
+    silence.gain.value = 0;
     source.connect(node);
-    node.connect(ctx.destination);
+    node.connect(silence);
+    silence.connect(ctx.destination);
 
     const track = stream.getAudioTracks()[0];
     return {
@@ -336,6 +341,7 @@
         try {
           node.disconnect();
           source.disconnect();
+          silence.disconnect();
           stream.getTracks().forEach((t) => t.stop());
           recognizer.remove();
           if (grammarRecognizer) grammarRecognizer.remove();

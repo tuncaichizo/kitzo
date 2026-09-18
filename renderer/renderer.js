@@ -283,7 +283,6 @@ function bindIpc() {
     wakeUp('reminder');
     showEmote('⏰', 6000);
     jump();
-    chime();
     say(`⏰ ${r.text || t('reminderDefault')}`, 10000, { replace: true });
     refreshReminders();
   });
