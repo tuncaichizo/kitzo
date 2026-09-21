@@ -20,6 +20,22 @@ html, body {
   height: 100%;
 }
 
+/* Karakter blogu pencerede her zaman ortada durur; menu/balon acilinca pencere
+   yanlara dogru genisler ama karakter yerinde kalir. */
+#pet {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  margin-left: -50px;
+  width: 100px;
+  height: 103px;
+}
+
+#stage.below #pet {
+  top: 0;
+  bottom: auto;
+}
+
 /* ---------- karakter ---------- */
 
 .character {
@@ -540,7 +556,8 @@ html, body {
 .bubble {
   position: absolute;
   bottom: 103px;
-  left: 4px;
+  left: 50%;
+  margin-left: -91px;
   width: 162px;
   padding: 8px 10px;
   border-radius: 12px;
@@ -590,7 +607,8 @@ html, body {
 .menu {
   position: absolute;
   bottom: 103px;
-  left: 0;
+  left: 50%;
+  margin-left: -95px;
   width: 170px;
   display: flex;
   flex-direction: column;

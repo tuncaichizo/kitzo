@@ -424,12 +424,19 @@ function registerIpc() {
     if (remember !== false) rememberPosition(Math.round(x), Math.round(y)); // numaralar gecici konumlari kaydetmez
   });
 
-  ipcMain.on('set-overlay', (_e, { open, extra, below }) => {
+  ipcMain.on('set-overlay', (_e, { open, extra, below, dx = 0 }) => {
     const b = win.getBounds();
+    const shift = Math.max(0, Math.round(dx));
     if (open) {
-      win.setBounds({ x: b.x, y: below ? b.y : b.y - extra, width: CHAR_W, height: CHAR_H + extra });
+      // menu/balon pencereden genisse iki yana buyut; karakter ortada kaldigi icin yerinde gorunur
+      win.setBounds({
+        x: b.x - shift,
+        y: below ? b.y : b.y - extra,
+        width: CHAR_W + shift * 2,
+        height: CHAR_H + extra,
+      });
     } else {
-      win.setBounds({ x: b.x, y: below ? b.y : b.y + extra, width: CHAR_W, height: CHAR_H });
+      win.setBounds({ x: b.x + shift, y: below ? b.y : b.y + extra, width: CHAR_W, height: CHAR_H });
     }
   });
 

@@ -45,7 +45,7 @@
 
   function clampX(x) {
     const d = currentDisplay();
-    return clamp(x, d.x, d.x + d.width - CHAR_W);
+    return clamp(x, d.x, d.x + d.width - winW());
   }
 
   // Pencereyi yumusakca tasir; konum kaydi numara bitince yapilir (yarim kalirsa ekran disi kalmasin)

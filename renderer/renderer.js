@@ -215,7 +215,7 @@ function displayAt(x, y) {
 }
 
 function currentDisplay() {
-  return displayAt(posX + CHAR_W / 2, posY + CHAR_H / 2) || displays[0];
+  return displayAt(posX + winW() / 2, posY + CHAR_H / 2) || displays[0];
 }
 
 function chime() {
@@ -841,7 +841,7 @@ function walkToRandomSpot() {
   const d = currentDisplay();
   const direction = Math.random() < 0.5 ? -1 : 1;
   const distance = 80 + Math.random() * 260;
-  walkTo(clamp(posX + direction * distance, d.x, d.x + d.width - CHAR_W), posY);
+  walkTo(clamp(posX + direction * distance, d.x, d.x + d.width - winW()), posY);
 }
 
 // Hedefe yuruyerek gider; y farki varsa yol boyunca yumusakca kapatilir.
@@ -907,7 +907,7 @@ function updateStayButton() {
 function goToCorner() {
   const d = currentDisplay();
   const extra = overlay ? overlay.extra : 0;
-  const targetX = d.x + d.width - CHAR_W - 30;
+  const targetX = d.x + d.width - winW() - 30;
   const targetY = d.y + d.height - CHAR_H - GROUND_MARGIN - (overlay && !overlay.below ? extra : 0);
   walkTo(targetX, targetY, { ignoreHover: true });
 }
@@ -953,7 +953,7 @@ window.addEventListener('mousemove', (e) => {
   const nx = dragStartPos.x + dx;
   const ny = dragStartPos.y + dy;
   // karakterin merkezi bir ekranin icinde kalmali, aksi halde kaybolabilir
-  if (!displayAt(nx + CHAR_W / 2, ny + CHAR_H / 2)) return;
+  if (!displayAt(nx + winW() / 2, ny + CHAR_H / 2)) return;
   posX = nx;
   posY = ny;
   // birakildiginda firlatma hizi icin son hareketler
@@ -965,10 +965,10 @@ window.addEventListener('mousemove', (e) => {
 // Karakter (ekran degisikligi, hatali surukleme vb.) hicbir ekranda kalmadiysa geri getirir
 function rescueIfLost() {
   if (dragging || physics) return;
-  if (displayAt(posX + CHAR_W / 2, posY + CHAR_H / 2)) return;
+  if (displayAt(posX + winW() / 2, posY + CHAR_H / 2)) return;
   const d = displays[0];
   if (!d) return;
-  posX = clamp(posX, d.x, d.x + d.width - CHAR_W);
+  posX = clamp(posX, d.x, d.x + d.width - winW());
   posY = d.y + d.height - CHAR_H - GROUND_MARGIN;
   window.ichi.moveWindow(posX, posY);
   window.ichi.voiceLog(`RESCUE: @${posX},${posY}`);
@@ -1052,13 +1052,13 @@ function stepPhysics() {
   let nx = posX + p.vx;
   let ny = posY + p.vy;
 
-  const d = displayAt(posX + CHAR_W / 2, posY + CHAR_H / 2) || currentDisplay();
+  const d = displayAt(posX + winW() / 2, posY + CHAR_H / 2) || currentDisplay();
   // menu/balon acikken pencere yukari dogru buyur; karakter pencerenin dibinde durdugu icin
   // yer seviyesi o kadar yukari kaymali, yoksa karakter ekranin altina itilir
   const extra = overlay && !overlay.below ? overlay.extra : 0;
   const groundY = d.y + d.height - CHAR_H - GROUND_MARGIN - extra;
   const leftX = d.x;
-  const rightX = d.x + d.width - CHAR_W;
+  const rightX = d.x + d.width - winW();
 
   // yanlar: hizliysa komsu ekrana gecer, degilse sekar
   if (nx < leftX) {
@@ -1141,24 +1141,39 @@ function shiftPos(dy) {
   if (dragging && dragStartPos) dragStartPos.y += dy;
 }
 
+// Menu/balon acilip kapanirken pencere yanlara buyur; sol kenar (posX) da kayar
+function shiftPosX(dx) {
+  posX += dx;
+  if (dragging && dragStartPos) dragStartPos.x += dx;
+}
+
+// Pencerenin o anki genisligi (menu/balon acikken daha genis)
+function winW() {
+  return CHAR_W + 2 * (overlay ? overlay.dx || 0 : 0);
+}
+
 function openOverlay(el) {
   if (overlay) closeOverlay();
   const extra = el.offsetHeight + OVERLAY_GAP;
+  // menu/balon pencereden genisse pencere iki yana buyur, karakter ortada kalir
+  const dx = Math.max(0, Math.ceil((el.offsetWidth - CHAR_W) / 2));
   const d = currentDisplay();
   const below = posY - extra < d.y;
   stageEl.classList.toggle('below', below);
   el.classList.add('open');
-  window.ichi.setOverlay({ open: true, extra, below });
+  window.ichi.setOverlay({ open: true, extra, below, dx });
   if (!below) shiftPos(-extra);
-  overlay = { el, extra, below };
+  if (dx) shiftPosX(-dx);
+  overlay = { el, extra, below, dx };
 }
 
 function closeOverlay() {
   if (!overlay) return;
-  const { el, extra, below } = overlay;
+  const { el, extra, below, dx } = overlay;
   el.classList.remove('open');
-  window.ichi.setOverlay({ open: false, extra, below });
+  window.ichi.setOverlay({ open: false, extra, below, dx });
   if (!below) shiftPos(extra);
+  if (dx) shiftPosX(dx);
   overlay = null;
 }
 
