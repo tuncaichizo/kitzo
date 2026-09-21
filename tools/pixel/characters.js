@@ -455,7 +455,7 @@ const SPECS = [
     id: 'barkinzo',
     name: 'Barkınzo',
     emoji: '👦',
-    pal: { line: '#3a2414', body: '#e8b48a', shirt: '#2ec4b6', pants: '#2b3a55', shoe: '#e63946', accent: '#2b1a10', accentDark: '#1c100a', eye: '#2a4a7a', nose: '#d98f6a' },
+    pal: { line: '#3a2414', body: '#e8b48a', shirt: '#2ec4b6', pants: '#2b3a55', shoe: '#e63946', accent: '#2b1a10', accentDark: '#1c100a', extra: '#5a3a24', eye: '#2a4a7a', nose: '#d98f6a' },
     top(c) {
       // kisa sac + perçem
       c.ellipse(25, 11, 14, 8, 'A');
@@ -463,7 +463,7 @@ const SPECS = [
       c.stamp(['..AAAA..', '.AAAAAA.', 'AAAAAA..'], 20, 3);
       c.rect(11, 14, 3, 6, 'A');
       c.rect(36, 14, 3, 6, 'A');
-      c.stamp(['LLLLL'], 22, 6);
+      c.stamp(['TTTTT'], 22, 6); // sacta acik ton parlama (ten rengi degil)
     },
     face(c) {
       c.ellipse(25, 23, 1.6, 1.2, 'N');

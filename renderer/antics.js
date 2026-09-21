@@ -454,12 +454,148 @@
     },
   };
 
-  // Secili karakterin yetenekleri (ilk + ikinci)
+  // Her karakterin kendine yakisan numaralari (yoksa tum havuz kullanilir).
+  // Bacaksiz karakterler (Zumi, Wispa) bacak isteyen numaralari yapmaz.
+  const CHAR_ANTICS = {
+    kitzo: ['spin', 'flip', 'stretch', 'look', 'scratch', 'hops', 'dash', 'vanish', 'watch', 'doze', 'sit'],
+    zumi: ['hops', 'spin', 'dizzy', 'doze', 'dance', 'look', 'watch', 'sit', 'juggle'],
+    byto: ['spin', 'workout', 'juggle', 'dizzy', 'look', 'dash', 'watch', 'sit', 'kick'],
+    fyra: ['dash', 'flip', 'hops', 'scratch', 'sneeze', 'look', 'spin', 'watch', 'climb'],
+    nocto: ['look', 'watch', 'doze', 'spin', 'stretch', 'climb', 'sit', 'dance'],
+    wispa: ['vanish', 'look', 'doze', 'spin', 'dizzy', 'watch', 'dance'],
+    drayko: ['workout', 'flip', 'spin', 'stretch', 'kick', 'dash', 'climb', 'sneeze'],
+    nubi: ['hops', 'dance', 'sit', 'doze', 'look', 'watch', 'sneeze', 'dizzy'],
+    ozgezo: ['dance', 'sit', 'look', 'watch', 'stretch', 'hops', 'juggle', 'doze'],
+    barkinzo: ['dance', 'workout', 'juggle', 'kick', 'sit', 'look', 'dash', 'moonwalk'],
+  };
+
+  // Her karakterin ucuncu yetenegi
+  const ABILITIES3 = {
+    kitzo: {
+      moves: false,
+      async run() {
+        add('ability-cyber');
+        showEmote('🌟', 2200);
+        mark('star');
+        abilitySay('kitzo3');
+        await pause(1800);
+        remove('ability-cyber');
+      },
+    },
+    zumi: {
+      moves: false,
+      async run() {
+        add('ability-bounce');
+        showEmote('🫧', 2600);
+        mark('bubbles');
+        abilitySay('zumi3');
+        await pause(2400);
+        remove('ability-bounce');
+      },
+    },
+    byto: {
+      moves: false,
+      async run() {
+        add('antic-dance');
+        showEmote('🎉', 2600);
+        mark('confetti');
+        abilitySay('byto3');
+        await pause(2400);
+        remove('antic-dance');
+      },
+    },
+    fyra: {
+      moves: false,
+      async run() {
+        add('ability-flame');
+        showEmote('🔥', 2400);
+        await pause(200);
+        mark('firebreath');
+        abilitySay('fyra3');
+        await pause(1400);
+        add('antic-spin');
+        await pause(900);
+        remove('antic-spin', 'ability-flame');
+      },
+    },
+    nocto: {
+      moves: false,
+      async run() {
+        add('ability-wings');
+        showEmote('🪶', 2400);
+        mark('trail', { style: 'feather' });
+        abilitySay('nocto3');
+        await pause(2200);
+        remove('ability-wings');
+      },
+    },
+    wispa: {
+      moves: false,
+      async run() {
+        add('ability-phase');
+        showEmote('🌫️', 2400);
+        mark('puff');
+        abilitySay('wispa3');
+        await pause(1200);
+        mark('puff');
+        await pause(1000);
+        remove('ability-phase');
+      },
+    },
+    drayko: {
+      moves: false,
+      async run() {
+        add('ability-firebreath');
+        showEmote('☄️', 2600);
+        mark('meteor');
+        abilitySay('drayko3', true);
+        await pause(2400);
+        remove('ability-firebreath');
+      },
+    },
+    nubi: {
+      moves: false,
+      async run() {
+        add('ability-iceslide');
+        showEmote('❄️', 2400);
+        mark('snowball');
+        abilitySay('nubi3');
+        await pause(2000);
+        remove('ability-iceslide');
+      },
+    },
+    ozgezo: {
+      moves: false,
+      async run() {
+        add('ability-shaman', 'ability-eyes-closed');
+        showEmote('⚡', 2600);
+        await pause(400);
+        mark('lightning');
+        abilitySay('ozgezo3', true);
+        await pause(2200);
+        remove('ability-shaman', 'ability-eyes-closed');
+      },
+    },
+    barkinzo: {
+      moves: false,
+      async run() {
+        add('ability-hacker');
+        showEmote('💣', 2600);
+        mark('bomb');
+        abilitySay('barkinzo3', true);
+        await pause(2600);
+        remove('ability-hacker');
+      },
+    },
+  };
+
+  // Secili karakterin yetenekleri (1, 2, 3)
   let lastAbilityKey = '';
   function abilityList() {
     const out = [];
     if (ABILITIES[currentCharId]) out.push({ ...ABILITIES[currentCharId], key: currentCharId });
     if (ABILITIES2[currentCharId]) out.push({ ...ABILITIES2[currentCharId], key: `${currentCharId}2` });
+    if (ABILITIES3[currentCharId]) out.push({ ...ABILITIES3[currentCharId], key: `${currentCharId}3` });
     return out.length ? out : null;
   }
 
@@ -746,9 +882,16 @@
 
   function pickName(explicit) {
     const list = abilityList();
+    if (/^power[123]$/.test(explicit || '')) {
+      const idx = Number(explicit.slice(5)) - 1;
+      return list && list[idx] ? explicit : pickName();
+    }
     if (explicit === 'power') return list ? 'power' : pickName();
     if (explicit && ANTICS[explicit]) return explicit;
-    let names = Object.keys(ANTICS).filter((n) => n !== lastName);
+    const own = CHAR_ANTICS[currentCharId];
+    let names = (own && own.filter((n) => ANTICS[n]).length ? own.filter((n) => ANTICS[n]) : Object.keys(ANTICS)).filter(
+      (n) => n !== lastName
+    );
     if (stay) names = names.filter((n) => !ANTICS[n].moves);
     if (!marksOn) names = names.filter((n) => !ANTICS[n].overlay);
     const weighted = names.map((n) => [n, ANTICS[n].w]);
@@ -764,6 +907,12 @@
   }
 
   function getEntry(name) {
+    if (/^power[123]$/.test(name)) {
+      const list = abilityList();
+      const chosen = list && list[Number(name.slice(5)) - 1];
+      if (chosen) lastAbilityKey = chosen.key;
+      return chosen || null;
+    }
     return name === 'power' ? pickAbility() : ANTICS[name];
   }
 
@@ -811,9 +960,17 @@
   window.KitzoAntics = {
     play,
     schedule,
-    line: (name) => (name === 'power' ? abilityLine(currentCharId) : anticLine(name)),
+    line: (name) => {
+      if (/^power[123]$/.test(name)) {
+        const list = abilityList();
+        const chosen = list && list[Number(name.slice(5)) - 1];
+        return chosen ? abilityLine(chosen.key) : anticLine('dance');
+      }
+      return name === 'power' ? abilityLine(currentCharId) : anticLine(name);
+    },
     busy: () => busy,
     names: () => Object.keys(ANTICS),
+    abilityCount: () => (abilityList() || []).length,
     hasPower: () => Boolean(ABILITIES[currentCharId]),
   };
 })();

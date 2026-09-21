@@ -557,7 +557,7 @@ html, body {
   position: absolute;
   bottom: 103px;
   left: 50%;
-  margin-left: -91px;
+  margin-left: -81px; /* kutu genisligi 162 (border-box), yarisi kadar sola */
   width: 162px;
   padding: 8px 10px;
   border-radius: 12px;
@@ -608,7 +608,7 @@ html, body {
   position: absolute;
   bottom: 103px;
   left: 50%;
-  margin-left: -95px;
+  margin-left: -85px; /* kutu genisligi 170 (border-box), yarisi kadar sola */
   width: 170px;
   display: flex;
   flex-direction: column;

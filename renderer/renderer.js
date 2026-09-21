@@ -21,6 +21,7 @@ const LISTEN_EXTEND_MS = 4000; // konusma algilandiginda pencere bu kadar uzar
 const LISTEN_MAX_MS = 15000; // uzatmalarla birlikte toplam ust sinir
 const MAX_UTTERANCE_TOKENS = 10; // daha uzunu arka plan konusmasi sayilir
 const MAX_PENDING_TOKENS = 14;
+const SETTLE_MS = 1300; // konusma bittikten sonra bu kadar sessizlik beklenip cevap verilir
 const NIGHT_END_HOUR = 7;
 const NIGHT_INTERACTION_GRACE_MS = 30 * 60000;
 const BIG_MOVE_COOLDOWN_MS = 30 * 60000;
@@ -53,6 +54,19 @@ const TENTATIVE_MAX_MS = 8000;
 const THROW_MIN_MS = 3 * 60000;
 const THROW_MAX_MS = 8 * 60000;
 const THROW_TYPES = ['bomb', 'bomb', 'firework', 'splash', 'meteor', 'snowball', 'lightning', 'paws', 'coin', 'confetti'];
+// Her karakterin firlattigi seyler kendine ozel (tip ya da { type, ... } ek bilgisiyle)
+const CHAR_THROWS = {
+  kitzo: ['coin', 'star', 'lightning', { type: 'sticker', emoji: '\u{1F41F}' }],
+  zumi: ['splash', 'bubbles', 'splat'],
+  byto: ['bomb', 'lightning', 'confetti'],
+  fyra: ['meteor', 'firework', 'splat'],
+  nocto: ['star', 'firework', { type: 'sticker', emoji: '\u{1F319}' }],
+  wispa: ['bubbles', 'snowball', { type: 'sticker', emoji: '\u{1F47B}' }],
+  drayko: ['meteor', 'bomb', 'firework'],
+  nubi: ['snowball', 'splash', { type: 'sticker', emoji: '\u{1F41F}' }],
+  ozgezo: ['firework', 'star', { type: 'sticker', emoji: '\u{1F338}' }],
+  barkinzo: ['bomb', 'confetti', 'lightning'],
+};
 const THROW_EMOJI = {
   bomb: '\u{1F4A5}',
   firework: '\u{1F386}',
@@ -102,7 +116,7 @@ const guideBtn = $('btn-guide');
 const sleepBtn = $('btn-sleep');
 const throwBtn = $('btn-throw');
 const trickBtn = $('btn-trick');
-const powerBtn = $('btn-power');
+const powerBtns = [$('btn-power1'), $('btn-power2'), $('btn-power3')];
 const marksBtn = $('btn-marks');
 const quitBtn = $('btn-quit');
 const scLabelEl = $('sc-label');
@@ -173,7 +187,9 @@ let listeningUntil = 0;
 let listeningStartedAt = 0;
 let listeningTentative = false; // sessiz deneme dinlemesi (gosterge yok, kisa pencere)
 let listenTimer = null;
-let pendingCmd = null; // dinleme sirasinda biriken komut parcalari
+let pendingCmd = null; // dinleme sirasinda biriken komut parcalari (serbest taniyici)
+let pendingGrammar = null; // ayni cumlenin kisitli taniyicidan gelen hali
+let settleTimer = null; // cumle bitti mi diye beklenen sessizlik sayaci
 let bubbleTag = null;
 let voiceReadyAnnounced = false;
 let feedback = true; // "Duydum: ..." geri bildirimi
@@ -289,6 +305,7 @@ async function init() {
   scheduleBlink();
   scheduleThrow();
   if (window.KitzoAntics) KitzoAntics.schedule();
+  updatePowerButtons();
 
   setTimeout(() => {
     showEmote('👋', 2500);
@@ -389,7 +406,16 @@ function loadCharacter(id) {
   charEl.innerHTML = c.svg;
   menuTitleEl.textContent = `${c.emoji} ${c.name.toUpperCase()}`;
   saveItem('character', c.id);
+  updatePowerButtons();
   renderCharacterList();
+}
+
+// Karakterin kac yetenegi varsa o kadar buton gorunur
+function updatePowerButtons() {
+  const count = window.KitzoAntics ? KitzoAntics.abilityCount() : powerBtns.length;
+  powerBtns.forEach((btn, i) => {
+    btn.hidden = i >= count;
+  });
 }
 
 function renderCharacterList() {
@@ -543,10 +569,11 @@ function onGrammarTranscript(text) {
   }
   if (!isListening()) return;
   if (listeningTentative && tokens.length > 5) return;
-  if (runVoiceCommand(tokens, raw, 'grammar')) {
-    rememberWakeAlias();
-    stopListening();
+  if (pendingGrammar) {
+    pendingGrammar.tokens.push(...tokens);
+    pendingGrammar.raw.push(...raw);
   }
+  armSettle(); // komutu cumle bitince calistiririz
 }
 
 // ---------- sohbet (yazili karsilik) ----------
@@ -806,12 +833,15 @@ function scheduleThrow() {
 
 // Karakter kolunu savurur; iz animasyonu ayri, tiklamayi gecirgen bir pencerede oynar (main.js playMarks)
 function throwSomething(type) {
-  const kind = THROW_TYPES.includes(type) ? type : pick(THROW_TYPES);
+  const own = CHAR_THROWS[currentCharId];
+  const choice = THROW_TYPES.includes(type) ? type : pick(own && own.length ? own : THROW_TYPES);
+  const kind = typeof choice === 'string' ? choice : choice.type;
+  const extra = typeof choice === 'string' ? {} : { emoji: choice.emoji };
   charEl.classList.remove('throw');
   void charEl.offsetWidth;
   charEl.classList.add('throw');
   setTimeout(() => charEl.classList.remove('throw'), 900);
-  showEmote(THROW_EMOJI[kind] || '🎯', 2200);
+  showEmote(extra.emoji || THROW_EMOJI[kind] || '🎯', 2200);
   window.ichi.voiceLog(`THROW: ${kind}`);
   setTimeout(() => {
     const rect = charEl.getBoundingClientRect();
@@ -822,6 +852,7 @@ function throwSomething(type) {
       dir: charEl.classList.contains('flipped') ? -1 : 1,
       charId: currentCharId,
       color: CHAR_COLORS[currentCharId] || '#b388ff',
+      ...extra,
     });
   }, 260);
 }
@@ -1653,6 +1684,8 @@ function startListening({ tentative = false } = {}) {
   listeningTentative = tentative;
   listeningUntil = listeningStartedAt + (tentative ? TENTATIVE_WINDOW_MS : LISTEN_WINDOW_MS);
   pendingCmd = { tokens: [], raw: [] };
+  pendingGrammar = { tokens: [], raw: [] };
+  clearTimeout(settleTimer);
   if (listener) listener.setListening(true);
   if (!tentative) {
     showEmote('🎧', 0, true);
@@ -1689,15 +1722,46 @@ function armListenTimer() {
       armListenTimer();
       return;
     }
-    stopListening();
+    evaluatePending();
   }, Math.max(50, listeningUntil - Date.now() + 100));
+}
+
+// Konusma bittikten sonra kisa bir sessizlik bekler; boylece cumlenin ortasinda cevap verilmez
+function armSettle() {
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(evaluatePending, SETTLE_MS);
+}
+
+// Biriken cumleyi calistirir: once serbest taniyici, olmazsa kisitli taniyici metni
+function evaluatePending() {
+  clearTimeout(settleTimer);
+  if (!isListening()) return;
+  const free = pendingCmd || { tokens: [], raw: [] };
+  const grammar = pendingGrammar || { tokens: [], raw: [] };
+  const tentative = listeningTentative;
+  if (!free.tokens.length && !grammar.tokens.length) {
+    stopListening();
+    return;
+  }
+  let handled = false;
+  if (free.tokens.length) handled = runVoiceCommand(free.tokens, free.raw);
+  if (!handled && grammar.tokens.length) handled = runVoiceCommand(grammar.tokens, grammar.raw, 'grammar');
+  const rawText = (free.raw.length ? free.raw : grammar.raw).join(' ');
+  if (handled) rememberWakeAlias();
+  stopListening();
+  if (handled || tentative) return;
+  showEmote('🤔', 2500);
+  if (feedback) say(t('heardLine', { text: rawText }), 4000, { replace: true });
+  else say(line('unknown'), 4500, { replace: true });
 }
 
 function stopListening() {
   listeningUntil = 0;
   listeningTentative = false;
   pendingCmd = null;
+  pendingGrammar = null;
   pendingWakeAlias = null;
+  clearTimeout(settleTimer);
   clearTimeout(listenTimer);
   if (listener) listener.setListening(false);
   hideEmote();
@@ -1748,25 +1812,13 @@ function onFinalTranscript(text) {
     }
     // Deneme eslesmesinde uzun cumle arka plan konusmasidir (TV: "zor koku nerede...")
     if (tentative && cmd.length > 5) return;
-    // Isim ve komut ayni cumlede geldi
+    // Isim ve komut ayni cumlede geldi: hemen cevaplamak yerine cumlenin devamini bekle
+    startListening({ tentative });
     pendingWakeAlias = heuristicAlias;
-    const handled = runVoiceCommand(cmd, rawCmd);
-    if (handled) {
-      rememberWakeAlias();
-      stopListening();
-      return;
-    }
-    // Sezgisel isimden sonra tek anlamsiz kelime kaldiysa ("kitap reis") o da ismin parcasidir: beklemeye gec
-    if (summoned || (wake.heuristic && cmd.length === 1)) {
-      startListening({ tentative });
-      pendingWakeAlias = heuristicAlias;
-      return;
-    }
-    stopListening();
-    if (tentative) return; // sessizce vazgec
-    showEmote('🤔', 2500);
-    if (feedback) say(t('heardLine', { text: rawCmd.join(' ') }), 4000, { replace: true });
-    else say(line('unknown'), 4500, { replace: true });
+    pendingCmd.tokens.push(...cmd);
+    pendingCmd.raw.push(...rawCmd);
+    showHeard(rawCmd);
+    armSettle();
     return;
   }
 
@@ -1779,10 +1831,9 @@ function onFinalTranscript(text) {
       return;
     }
     lastInteraction = Date.now();
-    if (runVoiceCommand(tokens, raw)) {
-      rememberWakeAlias();
-    }
-    stopListening();
+    pendingCmd.tokens.push(...tokens);
+    pendingCmd.raw.push(...raw);
+    armSettle();
     return;
   }
 
@@ -1790,18 +1841,13 @@ function onFinalTranscript(text) {
   lastInteraction = Date.now();
   pendingCmd.tokens.push(...tokens);
   pendingCmd.raw.push(...raw);
-  if (runVoiceCommand(pendingCmd.tokens, pendingCmd.raw)) {
-    rememberWakeAlias();
-    stopListening();
-    return;
-  }
   if (pendingCmd.tokens.length > MAX_PENDING_TOKENS) {
-    stopListening();
+    evaluatePending();
     return;
   }
-  showEmote('🤔', 1500);
   showHeard(raw);
   extendListening(LISTEN_EXTEND_MS);
+  armSettle(); // cumle bitsin, sonra cevap ver
 }
 
 // Iki taniyici ayni komutu birkac yuz ms arayla verebilir; ayni metin/aksiyon kisa surede bir kez calisir
@@ -1985,9 +2031,11 @@ trickBtn.addEventListener('click', () => {
   closeMenu();
   setTimeout(() => window.KitzoAntics && KitzoAntics.play(), 350);
 });
-powerBtn.addEventListener('click', () => {
-  closeMenu();
-  setTimeout(() => window.KitzoAntics && KitzoAntics.play('power'), 350);
+powerBtns.forEach((btn, i) => {
+  btn.addEventListener('click', () => {
+    closeMenu();
+    setTimeout(() => window.KitzoAntics && KitzoAntics.play(`power${i + 1}`), 350);
+  });
 });
 guideBtn.addEventListener('click', () => showSection('guide'));
 shortcutsBtn.addEventListener('click', () => {
