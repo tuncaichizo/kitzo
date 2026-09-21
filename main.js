@@ -376,8 +376,11 @@ async function playMarks(data) {
 }
 
 function registerIpc() {
-  // workArea yerine bounds: karakter gorev cubugunun/araç çubuklarının uzerinde durabilsin
-  ipcMain.handle('get-displays', () => screen.getAllDisplays().map((d) => d.bounds));
+  // Hareket icin tam ekran sinirlari (gorev cubugu ustunde de gezebilsin), dinlenme
+  // yuksekligi icin calisma alani (cubugun arkasinda kaybolmasin) birlikte gonderilir.
+  ipcMain.handle('get-displays', () =>
+    screen.getAllDisplays().map((d) => ({ ...d.bounds, work: d.workArea }))
+  );
   ipcMain.handle('get-position', () => win.getPosition());
   ipcMain.handle('get-cursor', () => screen.getCursorScreenPoint());
 
@@ -512,6 +515,13 @@ app.whenReady().then(async () => {
   setInterval(() => {
     send('system-idle', powerMonitor.getSystemIdleTime() >= IDLE_SLEEP_SECONDS);
   }, 30000);
+
+  // Windows bazen gorev cubugunu one alip karakteri arkada birakiyor; ustte kalmayi tazele
+  setInterval(() => {
+    if (!win || win.isDestroyed() || !win.isVisible()) return;
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.moveTop();
+  }, 4000);
 });
 
 app.on('will-quit', () => globalShortcut.unregisterAll());

@@ -403,6 +403,212 @@
     await wait(500);
   }
 
+  // ---- carpma/patlama efektleri (pikselli) ----
+
+  const FIRE = ['#fff3b0', '#ffd166', '#ff8a3c', '#ff5c1a', '#c1350a'];
+  const DEBRIS = ['#ffd166', '#ff8a3c', '#c1350a', '#3a2a22', '#6b5a4e'];
+  const px = (size, color) => `<div style="width:${size}px;height:${size}px;background:${color}"></div>`;
+
+  // Ortak patlama: yanik izi + sok halkasi + ates topu + enkaz + duman
+  async function explode(p, scale = 1) {
+    node('mark', blobSvg(rnd(16, 24) * scale, '#2a1f18'), p.x, p.y + 6, rnd(0, 360));
+
+    const ring = document.createElement('div');
+    ring.className = 'boom-ring';
+    ring.style.left = `${p.x}px`;
+    ring.style.top = `${p.y}px`;
+    layer.appendChild(ring);
+    setTimeout(() => ring.remove(), 700);
+
+    const balls = [];
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const d = node('boom', px(Math.round(rnd(10, 18) * scale), pick(FIRE)), p.x, p.y);
+      balls.push({ d, a, dist: rnd(12, 36) * scale });
+    }
+    const bits = [];
+    for (let i = 0; i < 22; i++) {
+      const a = rnd(-Math.PI, 0.2);
+      const sp = rnd(150, 380) * scale;
+      const d = node('bit', px(Math.round(rnd(4, 9)), pick(DEBRIS)), p.x, p.y);
+      bits.push({ d, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+    }
+    await animate(950, (t) => {
+      const e = easeOut(Math.min(1, t * 2));
+      for (const b of balls) {
+        place(
+          b.d,
+          p.x + Math.cos(b.a) * b.dist * e,
+          p.y + Math.sin(b.a) * b.dist * e,
+          0,
+          `scale(${Math.max(0.2, 1.4 - t * 1.4).toFixed(2)})`
+        );
+        b.d.style.opacity = String(Math.max(0, 1 - t * 1.7));
+      }
+      const s = t * 0.95;
+      for (const q of bits) {
+        place(q.d, p.x + q.vx * s, p.y + q.vy * s + 0.5 * 900 * s * s);
+        q.d.style.opacity = String(Math.max(0, 1 - t * 1.1));
+      }
+    });
+    for (const b of balls) b.d.remove();
+    for (const q of bits) q.d.remove();
+    await puff({ x: p.x, y: p.y - 8 });
+  }
+
+  // Bomba: ucar, fitili kivilcimlanir, patlar
+  async function bomb(o, dir) {
+    const p = pickTarget(o, dir, 180, 420);
+    const svg =
+      '<svg width="30" height="32" viewBox="0 0 30 32" shape-rendering="crispEdges">' +
+      '<rect x="7" y="12" width="16" height="15" fill="#26262e"/>' +
+      '<rect x="5" y="15" width="20" height="10" fill="#26262e"/>' +
+      '<rect x="9" y="15" width="4" height="4" fill="#5a5a68"/>' +
+      '<rect x="16" y="7" width="3" height="6" fill="#8a6a3a"/>' +
+      '<rect x="19" y="3" width="4" height="4" fill="#ffd166"/></svg>';
+    const b = node('proj', svg, o.x, o.y);
+    await fly(b, o, p, 620, { spin: rnd(-160, 160) });
+    for (let i = 0; i < 3; i++) {
+      node('quick', '<div class="spark">-</div>', p.x + rnd(-8, 8), p.y - 16);
+      await wait(90);
+    }
+    b.remove();
+    await explode(p);
+  }
+
+  // Havai fisek: yukari firlar, renkli kivilcimlara dagilir
+  async function firework(o, dir) {
+    const p = {
+      x: clamp(o.x + dir * rnd(50, 220), 80, W - 80),
+      y: clamp(o.y - rnd(170, 300), 60, H - 100),
+    };
+    const r = node('proj', px(6, '#ffd166'), o.x, o.y);
+    await animate(560, (t) => {
+      place(r, o.x + (p.x - o.x) * t, o.y + (p.y - o.y) * easeOut(t));
+    });
+    r.remove();
+    const col = pick(['#ff5c8a', '#5ac8ff', '#7cf29a', '#ffd166', '#c084fc']);
+    const sparks = [];
+    for (let i = 0; i < 30; i++) {
+      const a = (i / 30) * Math.PI * 2 + rnd(-0.12, 0.12);
+      const sp = rnd(130, 280);
+      const d = node('bit', px(4, Math.random() < 0.3 ? '#ffffff' : col), p.x, p.y);
+      sparks.push({ d, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+    }
+    await animate(1400, (t) => {
+      const s = t * 1.4;
+      for (const q of sparks) {
+        place(q.d, p.x + q.vx * s, p.y + q.vy * s + 0.5 * 240 * s * s);
+        q.d.style.opacity = String(Math.max(0, 1 - t));
+      }
+    });
+    for (const q of sparks) q.d.remove();
+  }
+
+  // Su balonu: ucar, patlar, damlalar sicrar ve islak iz kalir
+  async function splash(o, dir) {
+    const p = pickTarget(o, dir);
+    const b = node('proj', px(16, '#5ac8ff'), o.x, o.y);
+    await fly(b, o, p, 600, { spin: rnd(-140, 140) });
+    b.remove();
+    node('mark', blobSvg(rnd(20, 30), '#5ac8ff'), p.x, p.y + 4, rnd(0, 360));
+    const drops = [];
+    for (let i = 0; i < 22; i++) {
+      const a = rnd(-Math.PI, 0.15);
+      const sp = rnd(130, 320);
+      const d = node('bit', px(Math.round(rnd(3, 8)), pick(['#5ac8ff', '#9fe8ff', '#ffffff'])), p.x, p.y);
+      drops.push({ d, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+    }
+    await animate(900, (t) => {
+      const s = t * 0.9;
+      for (const q of drops) {
+        place(q.d, p.x + q.vx * s, p.y + q.vy * s + 0.5 * 800 * s * s);
+        q.d.style.opacity = String(Math.max(0, 1 - t * 1.2));
+      }
+    });
+    for (const q of drops) q.d.remove();
+  }
+
+  // Meteor: alev izi birakarak gelir, carpip patlar
+  async function meteor(o, dir) {
+    const p = pickTarget(o, dir, 200, 430);
+    const from = { x: clamp(p.x - dir * 280, -40, W + 40), y: Math.max(20, p.y - 280) };
+    const m = node('proj', px(13, '#ff8a3c'), from.x, from.y);
+    await animate(520, (t) => {
+      const x = from.x + (p.x - from.x) * t;
+      const y = from.y + (p.y - from.y) * t;
+      place(m, x, y);
+      if (t < 0.95 && Math.random() < 0.7) {
+        const s = node('bit', px(Math.round(rnd(4, 9)), pick(FIRE)), x + rnd(-5, 5), y + rnd(-5, 5));
+        setTimeout(() => s.remove(), 360);
+      }
+    });
+    m.remove();
+    await explode(p, 1.25);
+  }
+
+  // Kar topu: ucar, beyaz zerrelere dagilir
+  async function snowball(o, dir) {
+    const p = pickTarget(o, dir);
+    const b = node('proj', px(14, '#eaf6ff'), o.x, o.y);
+    await fly(b, o, p, 560, { spin: rnd(-200, 200) });
+    b.remove();
+    node('mark', blobSvg(rnd(16, 24), '#eaf6ff'), p.x, p.y + 4, rnd(0, 360));
+    const bits = [];
+    for (let i = 0; i < 24; i++) {
+      const a = rnd(-Math.PI, 0.2);
+      const sp = rnd(110, 260);
+      const d = node('bit', px(Math.round(rnd(3, 7)), pick(['#ffffff', '#eaf6ff', '#bfe4ff'])), p.x, p.y);
+      bits.push({ d, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+    }
+    await animate(850, (t) => {
+      const s = t * 0.85;
+      for (const q of bits) {
+        place(q.d, p.x + q.vx * s, p.y + q.vy * s + 0.5 * 700 * s * s);
+        q.d.style.opacity = String(Math.max(0, 1 - t * 1.15));
+      }
+    });
+    for (const q of bits) q.d.remove();
+  }
+
+  // Yildirim: yukaridan zikzak iner, ekran parlar, carptigi yer patlar
+  async function lightning(o, dir) {
+    const p = {
+      x: clamp(o.x + dir * rnd(60, 260), 70, W - 70),
+      y: clamp(o.y + rnd(10, 90), 100, H - 60),
+    };
+    const flash = document.createElement('div');
+    flash.className = 'boom-flash';
+    layer.appendChild(flash);
+    setTimeout(() => flash.remove(), 250);
+
+    const segs = [];
+    let x = p.x + rnd(-18, 18);
+    let y = 0;
+    while (y < p.y) {
+      const nx = x + rnd(-18, 18);
+      const ny = Math.min(p.y, y + rnd(20, 36));
+      const len = Math.hypot(nx - x, ny - y);
+      const ang = (Math.atan2(ny - y, nx - x) * 180) / Math.PI;
+      segs.push(
+        node(
+          'bolt',
+          `<div style="width:${Math.round(len)}px;height:5px;background:#fff9c4;box-shadow:0 0 10px #ffe066"></div>`,
+          (x + nx) / 2,
+          (y + ny) / 2,
+          ang
+        )
+      );
+      x = nx;
+      y = ny;
+    }
+    await wait(130);
+    for (const s of segs) s.style.opacity = '0.25';
+    await wait(90);
+    for (const s of segs) s.remove();
+    await explode(p, 0.9);
+  }
+
   // Top: ayaktan yuvarlanir, kucuk sekmelerle yavaslar
   async function kick(o, dir) {
     const dist = rnd(260, 440);
@@ -452,6 +658,12 @@
         case 'scan': await scanRings(o); break;
         case 'firebreath': await firebreath(o, dir); break;
         case 'terminal': await terminal(o, dir); break;
+        case 'bomb': await bomb(o, dir); break;
+        case 'firework': await firework(o, dir); break;
+        case 'splash': await splash(o, dir); break;
+        case 'meteor': await meteor(o, dir); break;
+        case 'snowball': await snowball(o, dir); break;
+        case 'lightning': await lightning(o, dir); break;
         default: await splat(o, dir, color);
       }
     } catch {

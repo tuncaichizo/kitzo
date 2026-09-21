@@ -13,7 +13,8 @@ const MAX_THROW = 70;
 const CROSS_SPEED = 30; // bu hizin ustunde ekran kenarindan komsu ekrana gecer
 const REST_SPEED = 2.4;
 const THROW_MIN = 9; // bu hizin altinda birakilirsa oldugu yerde kalir (dusmez)
-const GROUND_MARGIN = 16; // ayaklar ekranin en dibine degil, gorev cubugunun uzerine basar
+const TASKBAR_STAND = 10; // ayaklar gorev cubugunun ust kenarina bu kadar basar
+const GROUND_MARGIN = 6; // gorev cubugu yoksa alt kenardan bosluk
 const WALK_SPEED = 3.2; // 30 kare/sn'de piksel/adim (once 1.6 @ 60 kare/sn)
 const LISTEN_WINDOW_MS = 7000; // isim soylendikten sonra komut icin sessizce beklenen sure
 const LISTEN_EXTEND_MS = 4000; // konusma algilandiginda pencere bu kadar uzar
@@ -51,7 +52,18 @@ const TENTATIVE_MAX_MS = 8000;
 // Ekran izleri: karakter ara sira ekrana bir sey firlatir, iz 5 sn icinde silinir (renderer/marks.js)
 const THROW_MIN_MS = 3 * 60000;
 const THROW_MAX_MS = 8 * 60000;
-const THROW_TYPES = ['splat', 'splat', 'splat', 'paws', 'paws', 'paws', 'coin', 'coin', 'star', 'star', 'sticker', 'sticker', 'confetti', 'bubbles'];
+const THROW_TYPES = ['bomb', 'bomb', 'firework', 'splash', 'meteor', 'snowball', 'lightning', 'paws', 'coin', 'confetti'];
+const THROW_EMOJI = {
+  bomb: '\u{1F4A5}',
+  firework: '\u{1F386}',
+  splash: '\u{1F4A6}',
+  meteor: '\u2604\uFE0F',
+  snowball: '\u2744\uFE0F',
+  lightning: '\u26A1',
+  paws: '\u{1F43E}',
+  coin: '\u{1FA99}',
+  confetti: '\u{1F389}',
+};
 const CHAR_COLORS = { kitzo: '#b388ff', zumi: '#7cf29a', byto: '#5ac8ff', fyra: '#ff9a3c', nocto: '#c084fc', wispa: '#9fe8ff', drayko: '#ff5c5c', nubi: '#ffb347', ozgezo: '#ff8fb1', barkinzo: '#4f8bff' };
 
 const I18N = window.KITZO_I18N;
@@ -208,6 +220,14 @@ function currentName() {
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
+}
+
+// Karakterin basacagi yer: gorev cubugu varsa ust kenarina hafifce basar (arkasinda kaybolmaz),
+// yoksa ekranin alt kenarindan kucuk bir bosluk birakir.
+function groundOf(d) {
+  const w = d.work || d;
+  const hasBar = w.y + w.height < d.y + d.height - 2;
+  return hasBar ? w.y + w.height - CHAR_H + TASKBAR_STAND : d.y + d.height - CHAR_H - GROUND_MARGIN;
 }
 
 function displayAt(x, y) {
@@ -785,7 +805,7 @@ function throwSomething(type) {
   void charEl.offsetWidth;
   charEl.classList.add('throw');
   setTimeout(() => charEl.classList.remove('throw'), 900);
-  showEmote(kind === 'paws' ? '🐾' : kind === 'bubbles' ? '🫧' : '🎯', 2200);
+  showEmote(THROW_EMOJI[kind] || '🎯', 2200);
   window.ichi.voiceLog(`THROW: ${kind}`);
   setTimeout(() => {
     const rect = charEl.getBoundingClientRect();
@@ -908,7 +928,7 @@ function goToCorner() {
   const d = currentDisplay();
   const extra = overlay ? overlay.extra : 0;
   const targetX = d.x + d.width - winW() - 30;
-  const targetY = d.y + d.height - CHAR_H - GROUND_MARGIN - (overlay && !overlay.below ? extra : 0);
+  const targetY = groundOf(d) - (overlay && !overlay.below ? extra : 0);
   walkTo(targetX, targetY, { ignoreHover: true });
 }
 
@@ -969,7 +989,7 @@ function rescueIfLost() {
   const d = displays[0];
   if (!d) return;
   posX = clamp(posX, d.x, d.x + d.width - winW());
-  posY = d.y + d.height - CHAR_H - GROUND_MARGIN;
+  posY = groundOf(d);
   window.ichi.moveWindow(posX, posY);
   window.ichi.voiceLog(`RESCUE: @${posX},${posY}`);
 }
@@ -1056,7 +1076,7 @@ function stepPhysics() {
   // menu/balon acikken pencere yukari dogru buyur; karakter pencerenin dibinde durdugu icin
   // yer seviyesi o kadar yukari kaymali, yoksa karakter ekranin altina itilir
   const extra = overlay && !overlay.below ? overlay.extra : 0;
-  const groundY = d.y + d.height - CHAR_H - GROUND_MARGIN - extra;
+  const groundY = groundOf(d) - extra;
   const leftX = d.x;
   const rightX = d.x + d.width - winW();
 
