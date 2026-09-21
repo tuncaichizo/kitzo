@@ -20,13 +20,14 @@ const reminders = require('./lib/reminders');
 const voiceModel = require('./lib/voice-model');
 
 const APP_NAME = 'Kitzo';
-const CHAR_W = 170;
-const CHAR_H = 174; // 144 karakter + 30 emote alani
+const CHAR_W = 100;
+const CHAR_H = 103; // 77 karakter + 26 emote alani
 const IDLE_SLEEP_SECONDS = 20 * 60;
 const VOICE_TEST_ARG = '--voice-test=';
 const EXPORT_ICON_ARG = '--export-icon=';
 const THROW_TEST_ARG = '--throw-test='; // gelistirme: virgullu tur listesi, 6 sn arayla oynatilir
-const ANTIC_TEST_ARG = '--antic-test='; // gelistirme: virgullu numara listesi, 7 sn arayla oynatilir
+const ANTIC_TEST_ARG = '--antic-test=';
+const FLING_TEST_ARG = '--fling='; // gelistirme: "vx,vy" hiziyla firlatma dener // gelistirme: virgullu numara listesi, 7 sn arayla oynatilir
 
 let win;
 let tray;
@@ -214,12 +215,12 @@ function startPosition() {
     const cx = saved.x + CHAR_W / 2;
     const cy = saved.y + CHAR_H / 2;
     const inside = screen.getAllDisplays().some((d) => {
-      const a = d.workArea;
+      const a = d.bounds;
       return cx >= a.x && cx < a.x + a.width && cy >= a.y && cy < a.y + a.height;
     });
     if (inside) return { x: Math.round(saved.x), y: Math.round(saved.y) };
   }
-  const { x: ax, y: ay, width: aw, height: ah } = screen.getPrimaryDisplay().workArea;
+  const { x: ax, y: ay, width: aw, height: ah } = screen.getPrimaryDisplay().bounds;
   return { x: ax + aw - CHAR_W - 30, y: ay + ah - CHAR_H };
 }
 
@@ -269,6 +270,16 @@ function createWindow() {
           send('antic-now', { name });
         }, charDelay + 800 + i * 7000)
       );
+    });
+  }
+  const fling = argValue(FLING_TEST_ARG);
+  if (fling) {
+    win.webContents.once('did-finish-load', () => {
+      const [vx, vy] = fling.split(',').map(Number);
+      setTimeout(() => {
+        appendVoiceLog(`FLING-TEST: ${vx},${vy}`);
+        send('fling-now', { vx: vx || 0, vy: vy || 0 });
+      }, 5000);
     });
   }
   const throwTest = argValue(THROW_TEST_ARG);
@@ -345,7 +356,7 @@ async function playMarks(data) {
   clearTimeout(marksIdleTimer);
   const b = win.getBounds();
   const disp = screen.getDisplayNearestPoint({ x: b.x + CHAR_W / 2, y: b.y + b.height - CHAR_H / 2 });
-  const area = disp.workArea;
+  const area = disp.bounds;
   const w = await marksReady();
   if (!w || w.isDestroyed()) return;
   w.setBounds({ x: area.x, y: area.y, width: area.width, height: area.height });
@@ -365,7 +376,8 @@ async function playMarks(data) {
 }
 
 function registerIpc() {
-  ipcMain.handle('get-displays', () => screen.getAllDisplays().map((d) => d.workArea));
+  // workArea yerine bounds: karakter gorev cubugunun/araç çubuklarının uzerinde durabilsin
+  ipcMain.handle('get-displays', () => screen.getAllDisplays().map((d) => d.bounds));
   ipcMain.handle('get-position', () => win.getPosition());
   ipcMain.handle('get-cursor', () => screen.getCursorScreenPoint());
 

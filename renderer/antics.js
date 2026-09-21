@@ -18,7 +18,7 @@
   const linear = (t) => t;
 
   function interrupted() {
-    return dragging || menuOpen() || sleeping || Boolean(teaching);
+    return dragging || Boolean(physics) || menuOpen() || sleeping || Boolean(teaching);
   }
 
   // Bekleme: kullanici surukler, menu acilir ya da uyku baslarsa numara yarim kalir
@@ -55,16 +55,22 @@
       const sy = posY;
       const shift0 = overlayShiftTotal; // balon acilip kapanirsa posY kayar; hareket bunu takip eder
       const t0 = performance.now();
+      let lastSent = 0;
       const tick = () => {
         if (interrupted()) {
           reject(new Error('antic interrupted'));
           return;
         }
-        const t = Math.min(1, (performance.now() - t0) / ms);
+        const now = performance.now();
+        const t = Math.min(1, (now - t0) / ms);
         const e = ease(t);
         posX = Math.round(sx + (tx - sx) * e);
         posY = Math.round(sy + (ty - sy) * e + (overlayShiftTotal - shift0));
-        window.ichi.moveWindow(posX, posY, false);
+        // pencere tasima maliyetli: 60 yerine ~30 kare/sn gonderilir
+        if (t === 1 || now - lastSent >= 30) {
+          lastSent = now;
+          window.ichi.moveWindow(posX, posY, false);
+        }
         if (t < 1) requestAnimationFrame(tick);
         else resolve();
       };
@@ -89,16 +95,16 @@
     });
   }
 
-  function abilityLine(charId) {
-    const list = (T.lines.abilities || {})[charId];
+  function abilityLine(key) {
+    const list = (T.lines.abilities || {})[key];
     const text = Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : list;
     return fill(text || '✨', { name: currentName() });
   }
 
-  function abilitySay(charId, always = false) {
+  function abilitySay(key, always = false) {
     if (!always && Math.random() > SAY_CHANCE) return;
     if (Date.now() < quietUntil || menuOpen()) return;
-    say(abilityLine(charId), 2600, { replace: true });
+    say(abilityLine(key), 2600, { replace: true });
   }
 
   function anticLine(name) {
@@ -313,6 +319,161 @@
       },
     },
   };
+
+  // Her karakterin ikinci yetenegi (ikisinden biri rastgele secilir)
+  const ABILITIES2 = {
+    kitzo: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-cyber');
+        showEmote('💫', 2000);
+        mark('scan');
+        abilitySay('kitzo2');
+        await pause(1300);
+        remove('ability-cyber');
+      },
+    },
+    zumi: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-bounce');
+        showEmote('🟢', 2200);
+        mark('puddle');
+        abilitySay('zumi2');
+        await pause(1800);
+        remove('ability-bounce');
+      },
+    },
+    byto: {
+      w: 2,
+      moves: false,
+      async run() {
+        add('ability-scan');
+        showEmote('🔄', 2400);
+        mark('glitch');
+        await pause(700);
+        add('antic-shake');
+        await pause(500);
+        remove('antic-shake');
+        abilitySay('byto2', true);
+        await pause(800);
+        remove('ability-scan');
+      },
+    },
+    fyra: {
+      w: 2,
+      moves: false,
+      async run() {
+        add('ability-dig');
+        showEmote('🕳️', 2400);
+        mark('puddle', { color: '#7a4a24' });
+        abilitySay('fyra2');
+        await pause(2000);
+        remove('ability-dig');
+      },
+    },
+    nocto: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-owlspin');
+        showEmote('🦉', 2400);
+        abilitySay('nocto2');
+        await pause(2200);
+        remove('ability-owlspin');
+      },
+    },
+    wispa: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-boo');
+        showEmote('😱', 2000);
+        abilitySay('wispa2', true);
+        await pause(1500);
+        remove('ability-boo');
+      },
+    },
+    drayko: {
+      w: 2,
+      moves: true,
+      async run() {
+        const d = currentDisplay();
+        const startY = posY;
+        add('ability-wings');
+        showEmote('🐉', 2400);
+        mark('trail', { style: 'flame' });
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        face(dir);
+        const tx = clampX(posX + dir * rnd(160, 300));
+        const ty = Math.max(d.y + 10, startY - rnd(50, 90));
+        await glide(tx, ty, 800, easeInOut);
+        abilitySay('drayko2');
+        await pause(400);
+        await glide(tx, startY, 500, easeIn);
+        remove('ability-wings');
+      },
+    },
+    nubi: {
+      w: 3,
+      moves: false,
+      async run() {
+        showEmote('🐟', 2200);
+        mark('sticker', { emoji: '🐟' });
+        add('antic-hops');
+        abilitySay('nubi2');
+        await pause(1600);
+        remove('antic-hops');
+      },
+    },
+    ozgezo: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-shaman', 'ability-eyes-closed');
+        showEmote('✨', 2600);
+        mark('trail', { style: 'leaf', color: '#7cbf5a' });
+        abilitySay('ozgezo2');
+        await pause(2400);
+        remove('ability-shaman', 'ability-eyes-closed');
+      },
+    },
+    barkinzo: {
+      w: 3,
+      moves: false,
+      async run() {
+        add('ability-hacker');
+        showEmote('⌨️', 2600);
+        mark('terminal');
+        abilitySay('barkinzo2', true);
+        await pause(2400);
+        remove('ability-hacker');
+      },
+    },
+  };
+
+  // Secili karakterin yetenekleri (ilk + ikinci)
+  let lastAbilityKey = '';
+  function abilityList() {
+    const out = [];
+    if (ABILITIES[currentCharId]) out.push({ ...ABILITIES[currentCharId], key: currentCharId });
+    if (ABILITIES2[currentCharId]) out.push({ ...ABILITIES2[currentCharId], key: `${currentCharId}2` });
+    return out.length ? out : null;
+  }
+
+  function pickAbility() {
+    const list = abilityList();
+    if (!list) return null;
+    let opts = stay ? list.filter((a) => !a.moves) : list;
+    if (!opts.length) opts = list;
+    const fresh = opts.filter((a) => a.key !== lastAbilityKey);
+    if (fresh.length) opts = fresh;
+    const chosen = opts[Math.floor(Math.random() * opts.length)];
+    lastAbilityKey = chosen.key;
+    return chosen;
+  }
 
   // w: rastgele secim agirligi; moves: pencereyi tasir (bekle modunda secilmez); overlay: ekran katmani kullanir
   const ANTICS = {
@@ -584,14 +745,15 @@
   };
 
   function pickName(explicit) {
-    const ability = ABILITIES[currentCharId];
-    if (explicit === 'power') return ability ? 'power' : pickName();
+    const list = abilityList();
+    if (explicit === 'power') return list ? 'power' : pickName();
     if (explicit && ANTICS[explicit]) return explicit;
     let names = Object.keys(ANTICS).filter((n) => n !== lastName);
     if (stay) names = names.filter((n) => !ANTICS[n].moves);
     if (!marksOn) names = names.filter((n) => !ANTICS[n].overlay);
     const weighted = names.map((n) => [n, ANTICS[n].w]);
-    if (ability && lastName !== 'power' && !(stay && ability.moves)) weighted.push(['power', ability.w]);
+    const canPower = list && (!stay || list.some((a) => !a.moves));
+    if (canPower && lastName !== 'power') weighted.push(['power', 3]);
     const total = weighted.reduce((s, [, w]) => s + w, 0);
     let r = Math.random() * total;
     for (const [n, w] of weighted) {
@@ -602,7 +764,7 @@
   }
 
   function getEntry(name) {
-    return name === 'power' ? ABILITIES[currentCharId] : ANTICS[name];
+    return name === 'power' ? pickAbility() : ANTICS[name];
   }
 
   function cleanup() {
@@ -613,22 +775,25 @@
   }
 
   async function play(explicit) {
-    if (busy || sleeping || dragging) return false;
+    if (busy || sleeping || dragging || physics) return false;
     const name = pickName(explicit);
+    const entry = getEntry(name);
+    if (!entry || typeof entry.run !== 'function') return false;
     busy = true;
     lastName = name;
     clearTimeout(moveTimer);
     clearInterval(walkTick);
     setIdle();
-    window.ichi.voiceLog(`ANTIC: ${name} @${posX},${posY}`);
+    const label = name === 'power' ? `power(${entry.key})` : name;
+    window.ichi.voiceLog(`ANTIC: ${label} @${posX},${posY}`);
     try {
-      await getEntry(name).run();
-    } catch {
-      // yarida kesildi (surukleme / menu / uyku)
+      await entry.run();
+    } catch (err) {
+      window.ichi.voiceLog(`ANTIC-ERR: ${label} ${err && err.message}`);
     } finally {
       cleanup();
       busy = false;
-      window.ichi.voiceLog(`ANTIC-END: ${name} @${posX},${posY}`);
+      window.ichi.voiceLog(`ANTIC-END: ${label} @${posX},${posY}`);
       if (!sleeping) scheduleNextMove();
     }
     return true;
@@ -637,7 +802,7 @@
   function schedule() {
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      const idle = !(dragging || menuOpen() || sleeping || hovering || teaching || isListening() || busy);
+      const idle = !(dragging || physics || menuOpen() || sleeping || hovering || teaching || isListening() || busy);
       if (idle) await play();
       schedule();
     }, ANTIC_MIN_MS + Math.random() * (ANTIC_MAX_MS - ANTIC_MIN_MS));

@@ -38,4 +38,5 @@ contextBridge.exposeInMainWorld('ichi', {
   onListenNow: on('listen-now'),
   onThrowNow: on('throw-now'),
   onAnticNow: on('antic-now'),
+  onFlingNow: on('fling-now'),
 });

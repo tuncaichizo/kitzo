@@ -1,6 +1,6 @@
 {
   "name": "kitzo",
-  "version": "0.3.10",
+  "version": "0.4.0",
   "description": "Kitzo - a tiny desktop buddy with voice commands, shortcuts, crypto mood and reminders",
   "author": "Tunca Ichizo",
   "license": "SEE LICENSE IN LICENSE",
@@ -8,7 +8,8 @@
   "scripts": {
     "start": "electron .",
     "icon": "electron . --export-icon=build/icon.png",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis",
+    "characters": "node tools/pixel/build.js"
   },
   "build": {
     "appId": "com.kitzo.app",
@@ -29,7 +30,13 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "models", "to": "models", "filter": ["*.tar.gz"] }
+      {
+        "from": "models",
+        "to": "models",
+        "filter": [
+          "*.tar.gz"
+        ]
+      }
     ],
     "win": {
       "target": [

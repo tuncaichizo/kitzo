@@ -216,6 +216,7 @@
     // Dinleme penceresinde ikinci bir taniyici sadece bilinen komut kelimelerini dinler (cok daha isabetli).
     let grammarRecognizer = null;
     let listeningMode = false;
+    let paused = false; // kullanici bilgisayardan uzaktayken tanima durur (islemci)
     let testFeeding = false; // WAV testi surerken mikrofon sesi karismasin
     function setGrammar(words) {
       if (grammarRecognizer) {
@@ -268,13 +269,14 @@
       if (text.trim()) onPartial(text);
     });
     // 16 kHz'de 2048 ornek = 128 ms; 48 kHz'de 4096 = 85 ms (kapi tepkisi benzer kalsin)
-    const node = ctx.createScriptProcessor(ctx.sampleRate >= 32000 ? 4096 : 2048, 1, 1);
+    const node = ctx.createScriptProcessor(ctx.sampleRate >= 32000 ? 8192 : 4096, 1, 1);
     let noiseFloor = 0.002;
     let ambient = 0.002; // surekli arka plan sesi (TV/muzik) icin yavas ortalama
     let activeUntil = 0;
     let previous = null;
     let lastSpeechCallback = 0;
     let speechLevel = 0.02;
+    let speechRun = 0;
     const stats = { frames: 0, speechFrames: 0, peak: 0 };
     node.onaudioprocess = (e) => {
       const data = e.inputBuffer.getChannelData(0);
@@ -288,10 +290,19 @@
       const wasActive = now < activeUntil;
       stats.frames++;
       if (rms > stats.peak) stats.peak = rms;
-      const threshold = Math.max(0.003, noiseFloor * 4, wasActive ? ambient * 0.9 : ambient * 1.6);
-      if (rms > threshold) {
+      // Bosta yalnizca ad soylenmesini yakalamak yeterli: esik yuksek tutulur (arka plan sesi
+      // taniyiciyi calistirmasin). Ad duyulup dinleme penceresi acildiginda kapi tamamen acilir.
+      const threshold = wasActive
+        ? Math.max(0.004, noiseFloor * 3, ambient * 1.0)
+        : Math.max(0.006, noiseFloor * 5, ambient * 3.2);
+      // tek tuk tikirtilar (klavye, fare) taniyiciyi calistirmasin: kapali kapiyi acmak icin
+      // art arda iki kare gerekir; kapi acikken tek kare yetiyor (cumle ortasinda kesilmesin)
+      const loud = rms > threshold;
+      if (loud) speechRun++;
+      else speechRun = 0;
+      if (listeningMode || (loud && (wasActive || speechRun >= 2))) {
         stats.speechFrames++;
-        activeUntil = now + 1800;
+        activeUntil = now + 800;
         speechLevel = speechLevel * 0.9 + rms * 0.1;
         if (onSpeech && now - lastSpeechCallback > 500) {
           lastSpeechCallback = now;
@@ -302,6 +313,10 @@
       const gain = Math.min(10, Math.max(1, 0.08 / Math.max(speechLevel, 0.004)));
       const scaled = new Float32Array(data.length);
       for (let i = 0; i < data.length; i++) scaled[i] = Math.max(-1, Math.min(1, data[i] * gain));
+      if (paused && !listeningMode) {
+        previous = null;
+        return;
+      }
       if (now < activeUntil && !testFeeding) {
         try {
           // kapi yeni acildiysa bir onceki parcayi da ver ki ilk hece kirpilmasin
@@ -334,6 +349,9 @@
         return out;
       },
       setGrammar,
+      setPaused(on) {
+        paused = Boolean(on);
+      },
       setListening(on) {
         listeningMode = Boolean(on);
       },

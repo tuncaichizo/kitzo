@@ -1,8 +1,19 @@
-const CHAR_W = 170;
-const CHAR_H = 174; // 144 karakter + 30 emote alani (karakter 120x144, pencere 170 genis)
+const CHAR_W = 100;
+const CHAR_H = 103; // 77 karakter + 26 emote alani (karakter 64x77, pencere 100 genis)
 const OVERLAY_GAP = 8;
 const DRAG_THRESHOLD = 8;
-const WALK_SPEED = 1.6;
+// Firlatma/dusme fizigi (yaklasik 30 kare/sn)
+const GRAVITY = 2.4; // kare basina hiz artisi
+const BOUNCE = 0.52; // yere carpinca korunan hiz
+const WALL_BOUNCE = 0.62;
+const GROUND_FRICTION = 0.8;
+const AIR_DRAG = 0.995;
+const THROW_SCALE = 26; // fare hizindan (piksel/ms) kare hizina
+const MAX_THROW = 70;
+const CROSS_SPEED = 30; // bu hizin ustunde ekran kenarindan komsu ekrana gecer
+const REST_SPEED = 2.4;
+const GROUND_MARGIN = 16; // ayaklar ekranin en dibine degil, gorev cubugunun uzerine basar
+const WALK_SPEED = 3.2; // 30 kare/sn'de piksel/adim (once 1.6 @ 60 kare/sn)
 const LISTEN_WINDOW_MS = 7000; // isim soylendikten sonra komut icin sessizce beklenen sure
 const LISTEN_EXTEND_MS = 4000; // konusma algilandiginda pencere bu kadar uzar
 const LISTEN_MAX_MS = 15000; // uzatmalarla birlikte toplam ust sinir
@@ -57,7 +68,6 @@ const menuTitleEl = $('menu-title');
 const menuStatusEl = $('menu-status');
 const actionsEl = $('menu-actions');
 const closeBtn = $('btn-close-menu');
-const marketBtn = $('btn-market');
 const listenBtn = $('btn-listen');
 const remindersBtn = $('btn-reminders');
 const actionsBtn = $('btn-actions');
@@ -114,6 +124,8 @@ let dragMoved = false;
 let dragStartMouse = null;
 let dragStartPos = null;
 let hovering = false;
+let physics = null; // { vx, vy, timer } - firlatma/dusme suruyorsa dolu
+let dragSamples = [];
 
 let overlay = null; // { el, extra, below }
 let overlayShiftTotal = 0; // balon/menu acilip kapanirken posY'ye eklenen kaydirmalarin toplami (yurume sirasinda telafi icin)
@@ -307,6 +319,7 @@ function bindIpc() {
   });
   window.ichi.onListenNow(listenNow);
   window.ichi.onSetCharacter(({ id }) => loadCharacter(id)); // gelistirme: --antic-test ile birlikte --char=
+  window.ichi.onFlingNow(({ vx, vy }) => startPhysics(vx, vy)); // gelistirme: --fling=vx,vy
   window.ichi.onThrowNow(({ type }) => throwSomething(type));
   window.ichi.onAnticNow(({ name }) => window.KitzoAntics && KitzoAntics.play(name));
 }
@@ -758,7 +771,7 @@ function scheduleThrow() {
   clearTimeout(throwTimer);
   if (!marksOn) return;
   throwTimer = setTimeout(() => {
-    const busy = dragging || menuOpen() || sleeping || hovering || teaching || isListening() || Date.now() < quietUntil || (window.KitzoAntics && KitzoAntics.busy());
+    const busy = dragging || physics || menuOpen() || sleeping || hovering || teaching || isListening() || Date.now() < quietUntil || (window.KitzoAntics && KitzoAntics.busy());
     if (marksOn && !busy) throwSomething();
     scheduleThrow();
   }, THROW_MIN_MS + Math.random() * (THROW_MAX_MS - THROW_MIN_MS));
@@ -815,7 +828,7 @@ function scheduleNextMove() {
   moveTimer = setTimeout(() => {
     // pencere programla tasindiysa mouseleave gelmemis olabilir; hover durumunu dogrula
     if (hovering && !charEl.matches(':hover')) hovering = false;
-    if (dragging || menuOpen() || sleeping || stay || hovering || (window.KitzoAntics && KitzoAntics.busy())) {
+    if (dragging || physics || menuOpen() || sleeping || stay || hovering || (window.KitzoAntics && KitzoAntics.busy())) {
       scheduleNextMove();
       return;
     }
@@ -857,7 +870,7 @@ function walkTo(targetX, targetY, { ignoreHover = false } = {}) {
       scheduleNextMove();
       return;
     }
-    posX += direction * WALK_SPEED;
+    posX = Math.round(posX + direction * WALK_SPEED);
     const progress = clamp(Math.abs(posX - startX) / spanX, 0, 1);
     posY = Math.round(startY + (targetY - startY) * progress + (overlayShiftTotal - shift0));
     const reached = direction > 0 ? posX >= targetX : posX <= targetX;
@@ -869,7 +882,7 @@ function walkTo(targetX, targetY, { ignoreHover = false } = {}) {
       scheduleNextMove();
     }
     window.ichi.moveWindow(posX, posY);
-  }, 16);
+  }, 33);
 }
 
 function setStay(on) {
@@ -894,7 +907,7 @@ function goToCorner() {
   const d = currentDisplay();
   const extra = overlay ? overlay.extra : 0;
   const targetX = d.x + d.width - CHAR_W - 30;
-  const targetY = d.y + d.height - CHAR_H - (overlay && !overlay.below ? extra : 0);
+  const targetY = d.y + d.height - CHAR_H - GROUND_MARGIN - (overlay && !overlay.below ? extra : 0);
   walkTo(targetX, targetY, { ignoreHover: true });
 }
 
@@ -914,6 +927,8 @@ charEl.addEventListener('mouseleave', () => {
 charEl.addEventListener('mousedown', (e) => {
   dragging = true;
   dragMoved = false;
+  dragSamples = [];
+  stopPhysics(false);
   clearInterval(walkTick);
   charEl.classList.remove('walking');
   dragStartMouse = { x: e.screenX, y: e.screenY };
@@ -940,8 +955,132 @@ window.addEventListener('mousemove', (e) => {
   if (!displayAt(nx + CHAR_W / 2, ny + CHAR_H / 2)) return;
   posX = nx;
   posY = ny;
+  // birakildiginda firlatma hizi icin son hareketler
+  dragSamples.push({ x: posX, y: posY, t: performance.now() });
+  if (dragSamples.length > 6) dragSamples.shift();
   window.ichi.moveWindow(posX, posY);
 });
+
+// ---------- firlatma / dusme fizigi ----------
+
+// Ekranin o yanindaki komsu ekran (varsa)
+function neighborDisplay(d, side) {
+  const edge = side === 'left' ? d.x : d.x + d.width;
+  return (
+    displays.find((o) => {
+      if (o === d) return false;
+      const touches = side === 'left' ? Math.abs(o.x + o.width - edge) < 4 : Math.abs(o.x - edge) < 4;
+      const overlapY = o.y < d.y + d.height && o.y + o.height > d.y;
+      return touches && overlapY;
+    }) || null
+  );
+}
+
+function squash() {
+  charEl.classList.remove('squash');
+  void charEl.offsetWidth;
+  charEl.classList.add('squash');
+  setTimeout(() => charEl.classList.remove('squash'), 260);
+}
+
+// Fareyle birakildiginda: son hareketlerden hiz cikarilir, yoksa serbest dusus
+function releaseThrow() {
+  const now = performance.now();
+  const recent = dragSamples.filter((p) => now - p.t < 140);
+  let vx = 0;
+  let vy = 0;
+  if (recent.length >= 2) {
+    const a = recent[0];
+    const b = recent[recent.length - 1];
+    const dt = Math.max(16, b.t - a.t);
+    vx = clamp(((b.x - a.x) / dt) * THROW_SCALE, -MAX_THROW, MAX_THROW);
+    vy = clamp(((b.y - a.y) / dt) * THROW_SCALE, -MAX_THROW, MAX_THROW);
+  }
+  dragSamples = [];
+  startPhysics(vx, vy);
+}
+
+function startPhysics(vx, vy) {
+  stopPhysics(false);
+  clearTimeout(moveTimer);
+  clearInterval(walkTick);
+  charEl.classList.remove('walking');
+  charEl.classList.add('idle');
+  physics = { vx, vy, timer: null, bounces: 0 };
+  window.ichi.voiceLog(`FLING: vx=${Math.round(vx)} vy=${Math.round(vy)} @${posX},${posY}`);
+  physics.timer = setInterval(stepPhysics, 33);
+}
+
+function stopPhysics(resume = true) {
+  if (!physics) return;
+  clearInterval(physics.timer);
+  window.ichi.voiceLog(`FLING-END: sekme=${physics.bounces} @${posX},${posY}`);
+  physics = null;
+  window.ichi.moveWindow(posX, posY); // son konumu kaydet
+  if (resume && !sleeping) scheduleNextMove();
+}
+
+function stepPhysics() {
+  if (dragging) {
+    stopPhysics(false);
+    return;
+  }
+  const p = physics;
+  p.vy += GRAVITY;
+  p.vx *= AIR_DRAG;
+  let nx = posX + p.vx;
+  let ny = posY + p.vy;
+
+  const d = displayAt(posX + CHAR_W / 2, posY + CHAR_H / 2) || currentDisplay();
+  const groundY = d.y + d.height - CHAR_H - GROUND_MARGIN;
+  const leftX = d.x;
+  const rightX = d.x + d.width - CHAR_W;
+
+  // yanlar: hizliysa komsu ekrana gecer, degilse sekar
+  if (nx < leftX) {
+    if (!(neighborDisplay(d, 'left') && Math.abs(p.vx) > CROSS_SPEED)) {
+      nx = leftX;
+      p.vx = -p.vx * WALL_BOUNCE;
+      if (Math.abs(p.vx) > 4) squash();
+    }
+  } else if (nx > rightX) {
+    if (!(neighborDisplay(d, 'right') && Math.abs(p.vx) > CROSS_SPEED)) {
+      nx = rightX;
+      p.vx = -p.vx * WALL_BOUNCE;
+      if (Math.abs(p.vx) > 4) squash();
+    }
+  }
+
+  // tavan
+  if (ny < d.y) {
+    ny = d.y;
+    p.vy = Math.abs(p.vy) * WALL_BOUNCE;
+  }
+
+  // yer: sekme, surtunme ve durma
+  let landed = false;
+  if (ny >= groundY) {
+    ny = groundY;
+    if (Math.abs(p.vy) > REST_SPEED) {
+      p.vy = -Math.abs(p.vy) * BOUNCE;
+      p.vx *= GROUND_FRICTION;
+      p.bounces++;
+      squash();
+    } else {
+      p.vy = 0;
+      p.vx *= GROUND_FRICTION;
+      if (Math.abs(p.vx) < 1.2) landed = true;
+    }
+  }
+
+  posX = Math.round(nx);
+  posY = Math.round(ny);
+  window.ichi.moveWindow(posX, posY, false);
+  if (landed) {
+    showEmote('💫', 1400); // nereye dustugu belli olsun
+    stopPhysics();
+  }
+}
 
 function finishDrag(allowClick) {
   if (!dragging) return;
@@ -951,7 +1090,7 @@ function finishDrag(allowClick) {
 
   if (dragMoved || !allowClick) {
     hideEmote();
-    scheduleNextMove();
+    releaseThrow();
     return;
   }
   // Tiklama her zaman menuyu acar/kapatir; uyuyorsa sessizce uyanir.
@@ -1099,6 +1238,8 @@ function sleep(cause) {
   if (sleeping) return;
   sleeping = true;
   sleepCause = cause;
+  // kullanici bilgisayardan uzaktayken ses tanimayi durdur (islemci); gece uykusunda dinlemeye devam
+  if (cause === 'idle' && listener) listener.setPaused(true);
   charEl.classList.add('sleeping');
   clearInterval(walkTick);
   setIdle();
@@ -1109,6 +1250,7 @@ function sleep(cause) {
 
 function wakeUp(cause) {
   lastInteraction = Date.now();
+  if (listener) listener.setPaused(false);
   if (!sleeping) return;
   sleeping = false;
   sleepCause = null;
@@ -1730,10 +1872,6 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
 
 // ---------- olaylar ----------
 
-marketBtn.addEventListener('click', () => {
-  closeMenu();
-  showMarket();
-});
 listenBtn.addEventListener('click', listenNow);
 remindersBtn.addEventListener('click', () => {
   renderReminderList();
@@ -1778,7 +1916,7 @@ shortcutsBtn.addEventListener('click', () => {
   showSection('shortcuts');
   scLabelEl.focus();
 });
-scBackBtn.addEventListener('click', () => showSection('settings'));
+scBackBtn.addEventListener('click', () => showSection('main'));
 for (const btn of document.querySelectorAll('.btn-back')) {
   btn.addEventListener('click', () => showSection('main'));
 }

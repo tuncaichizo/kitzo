@@ -187,9 +187,9 @@
   }
 
   // Cikartma: ucar, yapisir, sonunda kenarindan soyulur
-  async function sticker(o, dir) {
+  async function sticker(o, dir, forced) {
     const p = pickTarget(o, dir);
-    const emoji = pick(STICKERS);
+    const emoji = forced || pick(STICKERS);
     const s = node('proj', `<div class="sticker">${emoji}</div>`, o.x, o.y);
     await fly(s, o, p, 640, { spin: rnd(-360, 360) });
     s.remove();
@@ -379,6 +379,30 @@
     for (const p of parts) p.d.remove();
   }
 
+  // Terminal penceresi: karakterin yaninda acilir, yesil satirlar yazilir
+  async function terminal(o, dir) {
+    const w = 150;
+    const h = 96;
+    const x = clamp(o.x + dir * 110, 90, W - 90);
+    const lines = ['> kitzo --scan', '> access: ok', '> npm run build', '> deploy ✓'];
+    const box = node(
+      'mark',
+      `<div style="width:${w}px;height:${h}px;border-radius:6px;background:rgba(10,14,12,0.92);border:1px solid #39ff6a;box-shadow:0 0 12px rgba(57,255,106,0.35);padding:6px 8px;box-sizing:border-box;font:600 11px/15px Consolas,monospace;color:#39ff6a;text-align:left;overflow:hidden"><div class="tl"></div></div>`,
+      x,
+      o.y
+    );
+    const target = box.querySelector('.tl');
+    for (const line of lines) {
+      for (let i = 1; i <= line.length; i += 2) {
+        target.textContent = `${lines.slice(0, lines.indexOf(line)).join('\n')}${lines.indexOf(line) ? '\n' : ''}${line.slice(0, i)}`;
+        target.style.whiteSpace = 'pre';
+        await wait(18);
+      }
+      await wait(120);
+    }
+    await wait(500);
+  }
+
   // Top: ayaktan yuvarlanir, kucuk sekmelerle yavaslar
   async function kick(o, dir) {
     const dist = rnd(260, 440);
@@ -415,7 +439,7 @@
         case 'paws': await trail(o, dir, color, PRINT_STYLE[data.charId] || 'paw'); break;
         case 'coin': await coin(o, dir); break;
         case 'star': await star(o, dir); break;
-        case 'sticker': await sticker(o, dir); break;
+        case 'sticker': await sticker(o, dir, data.emoji); break;
         case 'confetti': await confetti(o, dir); break;
         case 'bubbles': await bubbles(o, dir); break;
         case 'juggle': await juggle(o); break;
@@ -427,6 +451,7 @@
         case 'matrix': await matrixRain(o); break;
         case 'scan': await scanRings(o); break;
         case 'firebreath': await firebreath(o, dir); break;
+        case 'terminal': await terminal(o, dir); break;
         default: await splat(o, dir, color);
       }
     } catch {
