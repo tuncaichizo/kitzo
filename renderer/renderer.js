@@ -86,6 +86,7 @@ const remindersBtn = $('btn-reminders');
 const actionsBtn = $('btn-actions');
 const stayBtn = $('btn-stay');
 const cornerBtn = $('btn-corner');
+const cornerLeftBtn = $('btn-corner-left');
 const waveBtn = $('btn-wave');
 const charactersBtn = $('btn-characters');
 const settingsBtn = $('btn-settings');
@@ -478,7 +479,7 @@ function grammarWords() {
       if (clean) words.add(clean);
     }
   };
-  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'trick', 'power', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
+  const lists = ['reminder', 'help', 'mic', 'off', 'app', 'quit', 'market', 'corner', 'stay', 'wander', 'sleep', 'wake', 'throw', 'trick', 'power', 'left', 'right', 'menu', 'quiet', 'hello', 'thanks', 'who', 'half', 'articles', 'glue', 'skip', 'stop', 'extraGrammar'];
   for (const key of lists) (vc[key] || []).forEach(add);
   for (const entry of vc.chat || []) entry.any.forEach(add);
   Object.keys(vc.units).forEach(add);
@@ -924,10 +925,14 @@ function updateStayButton() {
   stayBtn.textContent = t(stay ? 'wander' : 'stay');
 }
 
-function goToCorner() {
+// side: 'left' | 'right' | yoksa en yakin kose
+function goToCorner(side) {
   const d = currentDisplay();
   const extra = overlay ? overlay.extra : 0;
-  const targetX = d.x + d.width - winW() - 30;
+  const leftX = d.x + 30;
+  const rightX = d.x + d.width - winW() - 30;
+  const nearest = Math.abs(posX - leftX) <= Math.abs(posX - rightX) ? leftX : rightX;
+  const targetX = side === 'left' ? leftX : side === 'right' ? rightX : nearest;
   const targetY = groundOf(d) - (overlay && !overlay.below ? extra : 0);
   walkTo(targetX, targetY, { ignoreHover: true });
 }
@@ -1839,8 +1844,10 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
     return true;
   }
   if (has(vc.corner)) {
+    // "sol koseye git" / "sag koseye git"; yon soylenmezse en yakin kose
+    const side = has(vc.left) ? 'left' : has(vc.right) ? 'right' : undefined;
     say(line('corner'), 2500, { replace: true });
-    setTimeout(goToCorner, 600);
+    setTimeout(() => goToCorner(side), 600);
     return true;
   }
   if (has(vc.stay)) {
@@ -1951,7 +1958,12 @@ stayBtn.addEventListener('click', () => {
 cornerBtn.addEventListener('click', () => {
   closeMenu();
   say(line('corner'), 2500);
-  setTimeout(goToCorner, 600);
+  setTimeout(() => goToCorner('right'), 600);
+});
+cornerLeftBtn.addEventListener('click', () => {
+  closeMenu();
+  say(line('corner'), 2500);
+  setTimeout(() => goToCorner('left'), 600);
 });
 waveBtn.addEventListener('click', () => {
   closeMenu();
