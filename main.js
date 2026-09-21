@@ -27,7 +27,8 @@ const VOICE_TEST_ARG = '--voice-test=';
 const EXPORT_ICON_ARG = '--export-icon=';
 const THROW_TEST_ARG = '--throw-test='; // gelistirme: virgullu tur listesi, 6 sn arayla oynatilir
 const ANTIC_TEST_ARG = '--antic-test=';
-const FLING_TEST_ARG = '--fling='; // gelistirme: "vx,vy" hiziyla firlatma dener // gelistirme: virgullu numara listesi, 7 sn arayla oynatilir
+const FLING_TEST_ARG = '--fling='; // gelistirme: "vx,vy" hiziyla firlatma dener
+const MENU_TEST_ARG = '--menu='; // gelistirme: menuyu belirtilen bolumde acar (main, actions, settings...) // gelistirme: virgullu numara listesi, 7 sn arayla oynatilir
 
 let win;
 let tray;
@@ -272,6 +273,15 @@ function createWindow() {
       );
     });
   }
+  const menuSection = argValue(MENU_TEST_ARG);
+  if (menuSection) {
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(() => {
+        appendVoiceLog(`MENU-TEST: gonderiliyor ${menuSection}`);
+        send('menu-section', menuSection);
+      }, 15000); // acilis balonlari bitsin
+    });
+  }
   const fling = argValue(FLING_TEST_ARG);
   if (fling) {
     win.webContents.once('did-finish-load', () => {
@@ -417,6 +427,7 @@ function registerIpc() {
     const wav = argValue(VOICE_TEST_ARG);
     if (!wav) return;
     const url = await voiceModel.publish(wav, 'voice-test.wav');
+    appendVoiceLog(url ? `VOICE-TEST: hazir ${url}` : `VOICE-TEST: dosya bulunamadi ${wav}`);
     if (url) send('voice-test', { url, teach: process.argv.includes('--voice-teach'), char: argValue('--char=') });
   });
 

@@ -134,6 +134,8 @@ window.KITZO_I18N = {
       stayed: 'Tamam, burada bekliyorum 🪑',
       wandering: 'Gezmeye devam! 🚶',
       corner: 'Köşeme gidiyorum 📍',
+      cornerLeftSay: 'Sol köşeye gidiyorum 📍',
+      cornerRightSay: 'Sağ köşeye gidiyorum 📍',
       throwLine: ['Ateş serbest! 💥', 'Kaçın, geliyor! 💣', 'Bum! 💥', 'Yakala bakalım 😼', 'Bu biraz gürültülü olacak 💣'],
       trickLine: ['İzle bunu 🎪', 'Hazır mısın? 🎪', 'Bir numara geliyor 🎪'],
       abilities: {
@@ -699,6 +701,8 @@ window.KITZO_I18N = {
       stayed: "Okay, I'll stay right here 🪑",
       wandering: 'Back to wandering! 🚶',
       corner: 'Off to my corner 📍',
+      cornerLeftSay: 'Heading to the left corner 📍',
+      cornerRightSay: 'Heading to the right corner 📍',
       throwLine: ['Fire in the hole! 💥', 'Incoming! 💣', 'Boom! 💥', 'Catch this 😼', 'This one is loud 💣'],
       trickLine: ['Watch this 🎪', 'Ready? 🎪', 'Here comes a trick 🎪'],
       abilities: {

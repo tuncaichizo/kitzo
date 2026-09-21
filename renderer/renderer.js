@@ -342,6 +342,11 @@ function bindIpc() {
   window.ichi.onListenNow(listenNow);
   window.ichi.onSetCharacter(({ id }) => loadCharacter(id)); // gelistirme: --antic-test ile birlikte --char=
   window.ichi.onFlingNow(({ vx, vy }) => startPhysics(vx, vy)); // gelistirme: --fling=vx,vy
+  window.ichi.onMenuSection((name) => {
+    window.ichi.voiceLog(`MENU-TEST: alindi ${name}`);
+    openMenu();
+    showSection(name);
+  }); // gelistirme: --menu=actions
   window.ichi.onThrowNow(({ type }) => throwSomething(type));
   window.ichi.onAnticNow(({ name }) => window.KitzoAntics && KitzoAntics.play(name));
 }
@@ -1846,7 +1851,8 @@ function runVoiceCommand(tokens, rawTokens, source = 'free') {
   if (has(vc.corner)) {
     // "sol koseye git" / "sag koseye git"; yon soylenmezse en yakin kose
     const side = has(vc.left) ? 'left' : has(vc.right) ? 'right' : undefined;
-    say(line('corner'), 2500, { replace: true });
+    const sayKey = side === 'left' ? 'cornerLeftSay' : side === 'right' ? 'cornerRightSay' : 'corner';
+    say(line(sayKey), 2500, { replace: true });
     setTimeout(() => goToCorner(side), 600);
     return true;
   }
@@ -1957,12 +1963,12 @@ stayBtn.addEventListener('click', () => {
 });
 cornerBtn.addEventListener('click', () => {
   closeMenu();
-  say(line('corner'), 2500);
+  say(line('cornerRightSay'), 2500);
   setTimeout(() => goToCorner('right'), 600);
 });
 cornerLeftBtn.addEventListener('click', () => {
   closeMenu();
-  say(line('corner'), 2500);
+  say(line('cornerLeftSay'), 2500);
   setTimeout(() => goToCorner('left'), 600);
 });
 waveBtn.addEventListener('click', () => {

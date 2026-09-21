@@ -39,4 +39,5 @@ contextBridge.exposeInMainWorld('ichi', {
   onThrowNow: on('throw-now'),
   onAnticNow: on('antic-now'),
   onFlingNow: on('fling-now'),
+  onMenuSection: on('menu-section'),
 });
