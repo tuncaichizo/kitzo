@@ -403,11 +403,79 @@
     await wait(500);
   }
 
+  const px = (size, color) => `<div style="width:${size}px;height:${size}px;background:${color}"></div>`;
+
+  // Yapraklar karakterin etrafinda donerek yukselir (saman ucusu)
+  async function leafSwirl(o) {
+    const leaves = [];
+    for (let i = 0; i < 12; i++) {
+      const d = node('mark', printSvg('leaf', pick(['#7cbf5a', '#9fd97a', '#5ea347'])), o.x, o.y);
+      leaves.push({
+        d,
+        a0: (i / 12) * Math.PI * 2,
+        rx: rnd(40, 72),
+        ry: rnd(12, 26),
+        rise: rnd(70, 150),
+        sp: rnd(1.4, 2.4),
+        sc: rnd(0.55, 0.85), // karakter kucuk oldugu icin yapraklar da kucuk
+      });
+    }
+    await animate(2600, (t) => {
+      for (const l of leaves) {
+        const a = l.a0 + t * l.sp * Math.PI * 2;
+        place(l.d, o.x + Math.cos(a) * l.rx, o.y + Math.sin(a) * l.ry - l.rise * t, Math.sin(a) * 40, `scale(${l.sc.toFixed(2)})`);
+        l.d.style.opacity = String(t < 0.72 ? 1 : Math.max(0, 1 - (t - 0.72) / 0.28));
+      }
+    });
+    for (const l of leaves) l.d.remove();
+  }
+
+  // Bereket: yesil halka, acan cicekler ve yukselen parilti
+  async function bloom(o) {
+    const ring = document.createElement('div');
+    ring.className = 'bloom-ring';
+    ring.style.left = `${o.x}px`;
+    ring.style.top = `${o.y + 28}px`;
+    layer.appendChild(ring);
+    setTimeout(() => ring.remove(), 1000);
+
+    const flowers = [];
+    for (let i = 0; i < 7; i++) {
+      const x = o.x + rnd(-72, 72);
+      const y = o.y + rnd(18, 46);
+      const d = node('mark', `<div style="font-size:17px;line-height:1">${pick(['🌸', '🌼', '🌿', '🍀'])}</div>`, x, y);
+      d.style.opacity = '0';
+      flowers.push({ d, x, y, delay: i * 110 });
+    }
+    const sparks = [];
+    for (let i = 0; i < 16; i++) {
+      const x = o.x + rnd(-50, 50);
+      const y = o.y + rnd(6, 44);
+      const d = node('bit', px(4, pick(['#c9f7a0', '#ffffff', '#8fe36a'])), x, y);
+      sparks.push({ d, x, y, rise: rnd(50, 120), delay: rnd(0, 600) });
+    }
+
+    await animate(2200, (t) => {
+      const ms = t * 2200;
+      for (const f of flowers) {
+        const ft = clamp((ms - f.delay) / 500, 0, 1);
+        place(f.d, f.x, f.y - 4 * ft, 0, `scale(${(0.3 + ft * 0.7).toFixed(2)})`);
+        f.d.style.opacity = String(t > 0.8 ? Math.max(0, 1 - (t - 0.8) / 0.2) : ft);
+      }
+      for (const s of sparks) {
+        const st = clamp((ms - s.delay) / 1200, 0, 1);
+        place(s.d, s.x + Math.sin(st * 6) * 6, s.y - s.rise * st);
+        s.d.style.opacity = String(st <= 0 ? 0 : 1 - st);
+      }
+    });
+    for (const f of flowers) f.d.remove();
+    for (const s of sparks) s.d.remove();
+  }
+
   // ---- carpma/patlama efektleri (pikselli) ----
 
   const FIRE = ['#fff3b0', '#ffd166', '#ff8a3c', '#ff5c1a', '#c1350a'];
   const DEBRIS = ['#ffd166', '#ff8a3c', '#c1350a', '#3a2a22', '#6b5a4e'];
-  const px = (size, color) => `<div style="width:${size}px;height:${size}px;background:${color}"></div>`;
 
   // Ortak patlama: yanik izi + sok halkasi + ates topu + enkaz + duman
   async function explode(p, scale = 1) {
@@ -664,6 +732,8 @@
         case 'meteor': await meteor(o, dir); break;
         case 'snowball': await snowball(o, dir); break;
         case 'lightning': await lightning(o, dir); break;
+        case 'leafswirl': await leafSwirl(o); break;
+        case 'bloom': await bloom(o); break;
         default: await splat(o, dir, color);
       }
     } catch {

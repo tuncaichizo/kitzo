@@ -290,19 +290,25 @@
       w: 2,
       moves: true,
       async run() {
+        // Saman ucusu: gozler kapanir, aura yanar, yapraklar etrafinda donerken havalanir
         const d = currentDisplay();
         const startY = posY;
         add('ability-shaman', 'ability-eyes-closed');
-        showEmote('🍃', 2400);
-        mark('trail', { style: 'leaf', color: '#7cbf5a' });
+        showEmote('🍃', 2600);
+        await pause(350);
+        mark('leafswirl');
+        add('ability-float');
         const dir = Math.random() < 0.5 ? -1 : 1;
         face(dir);
-        const targetX = clampX(posX + dir * rnd(220, 400));
-        const targetY = Math.max(d.y + 10, startY - rnd(60, 100));
-        await glide(targetX, targetY, 1100, easeInOut);
+        const targetX = clampX(posX + dir * rnd(140, 260));
+        const targetY = Math.max(d.y + 10, startY - rnd(110, 160));
+        await glide(targetX, targetY, 1200, easeOut);
+        mark('leafswirl'); // tepede yapraklar etrafinda doner
         abilitySay('ozgezo');
-        await pause(500);
-        await glide(targetX, startY, 700, easeIn);
+        await pause(1100);
+        await glide(targetX, startY, 900, easeInOut);
+        remove('ability-float');
+        await pause(250);
         remove('ability-shaman', 'ability-eyes-closed');
       },
     },
@@ -432,11 +438,15 @@
       w: 3,
       moves: false,
       async run() {
-        add('ability-shaman', 'ability-eyes-closed');
-        showEmote('✨', 2600);
-        mark('trail', { style: 'leaf', color: '#7cbf5a' });
-        abilitySay('ozgezo2');
-        await pause(2400);
+        // Bereket: kollar acilir, yesil halka yayilir, cicekler acar
+        add('ability-shaman', 'ability-eyes-closed', 'ability-pray');
+        showEmote('🌸', 2600);
+        await pause(450);
+        mark('bloom');
+        abilitySay('ozgezo2', true);
+        await pause(2000);
+        remove('ability-pray');
+        await pause(300);
         remove('ability-shaman', 'ability-eyes-closed');
       },
     },

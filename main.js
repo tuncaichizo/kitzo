@@ -265,12 +265,15 @@ function createWindow() {
       // renderer'in init()/bindIpc() calismasi icin bekle; erken gonderilirse 'set-character' dinleyicisi henuz yokken kaybolur
       const charDelay = char ? 4000 : 0;
       if (char) setTimeout(() => send('set-character', { id: char }), charDelay);
-      names.forEach((name, i) =>
+      names.forEach((name, i) => {
+        const at = charDelay + 800 + i * 7000;
+        // karakter secimi kayitli degerle ezilebiliyor: her denemeden hemen once tekrar gonder
+        if (char) setTimeout(() => send('set-character', { id: char }), at - 400);
         setTimeout(() => {
           appendVoiceLog(`ANTIC-TEST: ${name}`);
           send('antic-now', { name });
-        }, charDelay + 800 + i * 7000)
-      );
+        }, at);
+      });
     });
   }
   const menuSection = argValue(MENU_TEST_ARG);

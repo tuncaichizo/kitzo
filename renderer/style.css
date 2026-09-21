@@ -444,6 +444,26 @@ html, body {
   60% { transform: scale(1.25); opacity: 0.55; }
 }
 
+/* Ozgezo: havada suzulurken hafif salinim */
+.character.ability-float svg { animation: ability-float 2.4s steps(6, jump-none) infinite; }
+@keyframes ability-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+
+/* Ozgezo: bereket duasi - kollar yana acilir */
+.character.ability-pray #arm-right,
+.character.ability-pray #arm-left,
+.character.ability-pray .arm-l {
+  transform-box: fill-box;
+  transform-origin: top center;
+}
+.character.ability-pray #arm-right { animation: ability-pray-r 2.6s ease-in-out 1 forwards; }
+.character.ability-pray #arm-left,
+.character.ability-pray .arm-l { animation: ability-pray-l 2.6s ease-in-out 1 forwards; }
+@keyframes ability-pray-r { 0%, 100% { transform: rotate(0deg); } 18%, 82% { transform: rotate(-125deg); } }
+@keyframes ability-pray-l { 0%, 100% { transform: rotate(0deg); } 18%, 82% { transform: rotate(125deg); } }
+
 /* Ozgezo: saman ucusu - huzurlu kapali gozler + hafif parlayan aura */
 .character.ability-eyes-closed .eye-open { opacity: 0; }
 .character.ability-eyes-closed .eye-closed { opacity: 1; }
