@@ -12,6 +12,7 @@ const THROW_SCALE = 26; // fare hizindan (piksel/ms) kare hizina
 const MAX_THROW = 70;
 const CROSS_SPEED = 30; // bu hizin ustunde ekran kenarindan komsu ekrana gecer
 const REST_SPEED = 2.4;
+const THROW_MIN = 9; // bu hizin altinda birakilirsa oldugu yerde kalir (dusmez)
 const GROUND_MARGIN = 16; // ayaklar ekranin en dibine degil, gorev cubugunun uzerine basar
 const WALK_SPEED = 3.2; // 30 kare/sn'de piksel/adim (once 1.6 @ 60 kare/sn)
 const LISTEN_WINDOW_MS = 7000; // isim soylendikten sonra komut icin sessizce beklenen sure
@@ -961,6 +962,18 @@ window.addEventListener('mousemove', (e) => {
   window.ichi.moveWindow(posX, posY);
 });
 
+// Karakter (ekran degisikligi, hatali surukleme vb.) hicbir ekranda kalmadiysa geri getirir
+function rescueIfLost() {
+  if (dragging || physics) return;
+  if (displayAt(posX + CHAR_W / 2, posY + CHAR_H / 2)) return;
+  const d = displays[0];
+  if (!d) return;
+  posX = clamp(posX, d.x, d.x + d.width - CHAR_W);
+  posY = d.y + d.height - CHAR_H - GROUND_MARGIN;
+  window.ichi.moveWindow(posX, posY);
+  window.ichi.voiceLog(`RESCUE: @${posX},${posY}`);
+}
+
 // ---------- firlatma / dusme fizigi ----------
 
 // Ekranin o yanindaki komsu ekran (varsa)
@@ -997,10 +1010,18 @@ function releaseThrow() {
     vy = clamp(((b.y - a.y) / dt) * THROW_SCALE, -MAX_THROW, MAX_THROW);
   }
   dragSamples = [];
+  // Yavas birakma = oraya koymak: oldugu yerde kalir. Gercekten firlatilirsa fizik calisir.
+  if (Math.hypot(vx, vy) < THROW_MIN) {
+    window.ichi.moveWindow(posX, posY); // konumu kaydet
+    window.ichi.voiceLog(`PLACED: @${posX},${posY}`);
+    if (!sleeping) scheduleNextMove();
+    return;
+  }
   startPhysics(vx, vy);
 }
 
 function startPhysics(vx, vy) {
+  if (bubbleOpen()) hideBubble();
   stopPhysics(false);
   clearTimeout(moveTimer);
   clearInterval(walkTick);
@@ -1032,7 +1053,10 @@ function stepPhysics() {
   let ny = posY + p.vy;
 
   const d = displayAt(posX + CHAR_W / 2, posY + CHAR_H / 2) || currentDisplay();
-  const groundY = d.y + d.height - CHAR_H - GROUND_MARGIN;
+  // menu/balon acikken pencere yukari dogru buyur; karakter pencerenin dibinde durdugu icin
+  // yer seviyesi o kadar yukari kaymali, yoksa karakter ekranin altina itilir
+  const extra = overlay && !overlay.below ? overlay.extra : 0;
+  const groundY = d.y + d.height - CHAR_H - GROUND_MARGIN - extra;
   const leftX = d.x;
   const rightX = d.x + d.width - CHAR_W;
 
@@ -1052,8 +1076,8 @@ function stepPhysics() {
   }
 
   // tavan
-  if (ny < d.y) {
-    ny = d.y;
+  if (ny < d.y - extra) {
+    ny = d.y - extra;
     p.vy = Math.abs(p.vy) * WALL_BOUNCE;
   }
 
@@ -1280,6 +1304,7 @@ function updateSleepButton() {
 // ---------- kisilik ----------
 
 function minuteTick() {
+  rescueIfLost();
   checkSleep();
   if (listener) {
     const s = listener.readStats();
