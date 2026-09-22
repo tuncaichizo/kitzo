@@ -5,6 +5,7 @@
   "author": "Tunca Ichizo",
   "license": "SEE LICENSE IN LICENSE",
   "main": "main.js",
+  "desktopName": "kitzo.desktop",
   "scripts": {
     "start": "electron .",
     "icon": "electron . --export-icon=build/icon.png",
@@ -83,7 +84,6 @@
           "Categories": "Utility;"
         }
       },
-      "desktopName": "kitzo.desktop",
       "syncDesktopName": true
     },
     "deb": {
