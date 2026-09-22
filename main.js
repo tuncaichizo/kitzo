@@ -541,7 +541,6 @@ if (!exportingIcon && !app.requestSingleInstanceLock()) {
 // Linux'ta saydam pencereler ancak bu anahtarla calisir; ayrica pencere biraz gec acilmali
 if (IS_LINUX) {
   app.commandLine.appendSwitch('enable-transparent-visuals');
-  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 }
 
 app.on('second-instance', openMenuFromOutside);
@@ -588,12 +587,17 @@ app.whenReady().then(async () => {
     send('system-idle', powerMonitor.getSystemIdleTime() >= IDLE_SLEEP_SECONDS);
   }, 30000);
 
-  // Windows bazen gorev cubugunu one alip karakteri arkada birakiyor; ustte kalmayi tazele
-  setInterval(() => {
-    if (!win || win.isDestroyed() || !win.isVisible()) return;
-    keepOnTop(win);
-    win.moveTop();
-  }, 4000);
+  // Windows bazen gorev cubugunu one alip karakteri arkada birakiyor; ustte kalmayi tazele.
+  // Linux'ta pencere yoneticisi bunu kendisi koruyor: orada seyrek tazeleriz ve moveTop() ile
+  // pencereyi bosuna yeniden cizdirmeyiz (islemci kullanimi dusuk kalsin).
+  setInterval(
+    () => {
+      if (!win || win.isDestroyed() || !win.isVisible()) return;
+      keepOnTop(win);
+      if (!IS_LINUX) win.moveTop();
+    },
+    IS_LINUX ? 30000 : 4000
+  );
 });
 
 app.on('will-quit', () => globalShortcut.unregisterAll());
