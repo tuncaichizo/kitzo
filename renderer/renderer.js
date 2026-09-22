@@ -1652,7 +1652,7 @@ async function startVoice() {
     const name = err && err.name;
     const key =
       name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError'
-        ? 'statusMicDenied'
+        ? (window.ichi.platform === 'win32' ? 'statusMicDenied' : 'statusMicDeniedLinux')
         : name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError'
           ? 'statusNoMic'
           : 'statusError';

@@ -13,6 +13,10 @@ const {
   nativeImage,
 } = require('electron');
 const { spawn } = require('child_process');
+
+const IS_WIN = process.platform === 'win32';
+const IS_LINUX = process.platform === 'linux';
+const IS_MAC = process.platform === 'darwin';
 const path = require('path');
 const fs = require('fs');
 const market = require('./lib/market');
@@ -79,13 +83,46 @@ function isAutostart() {
   return getSettings().autostart ?? true;
 }
 
+// Linux'ta Electron'un giris ogesi API'si calismiyor; masaustu standardi olan
+// ~/.config/autostart/kitzo.desktop dosyasini kendimiz yazip siliyoruz.
+function linuxAutostartFile() {
+  const base = process.env.XDG_CONFIG_HOME || path.join(app.getPath('home'), '.config');
+  return path.join(base, 'autostart', 'kitzo.desktop');
+}
+
+function setLinuxAutostart(enabled) {
+  const file = linuxAutostartFile();
+  try {
+    if (!enabled) {
+      fs.rmSync(file, { force: true });
+      return;
+    }
+    // AppImage kendi yolunu APPIMAGE degiskeninde verir; paket kurulumunda execPath yeterli
+    const exec = process.env.APPIMAGE || process.execPath;
+    const args = app.isPackaged ? '' : ` ${app.getAppPath()}`;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(
+      file,
+      ['[Desktop Entry]', 'Type=Application', `Name=${APP_NAME}`, `Exec="${exec}"${args}`,
+        'Terminal=false', 'X-GNOME-Autostart-enabled=true', ''].join('\n'),
+      'utf8'
+    );
+  } catch {
+    // yazilamazsa uygulama yine calisir, sadece baslangicta acilmaz
+  }
+}
+
 function setAutostart(enabled) {
-  app.setLoginItemSettings({
-    openAtLogin: enabled,
-    name: APP_NAME,
-    path: process.execPath,
-    args: app.isPackaged ? [] : [app.getAppPath()],
-  });
+  if (IS_LINUX) {
+    setLinuxAutostart(enabled);
+  } else {
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      name: APP_NAME,
+      path: process.execPath,
+      args: app.isPackaged ? [] : [app.getAppPath()],
+    });
+  }
   patchSettings({ autostart: enabled });
 }
 
@@ -149,12 +186,15 @@ function runAction(id) {
   } else if (action.type === 'app' && action.target) {
     if (fs.existsSync(action.target)) {
       shell.openPath(action.target);
-    } else {
+    } else if (IS_WIN) {
       spawn('cmd', ['/c', 'start', '', action.target], {
         detached: true,
         stdio: 'ignore',
         windowsHide: true,
       }).unref();
+    } else {
+      // Linux/macOS: PATH uzerindeki komut adi ya da "komut argüman" bicimi
+      spawn(action.target, { detached: true, stdio: 'ignore', shell: true }).unref();
     }
   }
 }
@@ -183,6 +223,13 @@ function openMenuFromOutside() {
 
 // ---------- sistem tepsisi ----------
 
+// 'screen-saver' seviyesi yalnizca Windows/macOS'ta gecerli; Linux'ta sade bicimde ustte tutariz
+function keepOnTop(w) {
+  if (!w || w.isDestroyed()) return;
+  if (IS_LINUX) w.setAlwaysOnTop(true);
+  else w.setAlwaysOnTop(true, 'screen-saver');
+}
+
 function updateTrayMenu() {
   if (!tray) return;
   const tr = getLanguage() === 'tr';
@@ -203,7 +250,9 @@ function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 32, height: 32 });
   tray = new Tray(icon);
   tray.setToolTip(APP_NAME);
+  // Linux masaustlerinin cogu sol tiki tepsiye iletmez; orada sag tik menusu kullanilir
   tray.on('click', openMenuFromOutside);
+  if (IS_LINUX) tray.on('double-click', openMenuFromOutside);
   updateTrayMenu();
 }
 
@@ -253,7 +302,7 @@ function createWindow() {
     },
   });
 
-  win.setAlwaysOnTop(true, 'screen-saver');
+  keepOnTop(win);
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
@@ -335,7 +384,7 @@ function ensureMarksWindow() {
     },
   });
   marksWin.setIgnoreMouseEvents(true);
-  marksWin.setAlwaysOnTop(true, 'screen-saver');
+  keepOnTop(marksWin);
   marksWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   marksWin.webContents.once('did-finish-load', () => {
     marksLoaded = true;
@@ -410,6 +459,7 @@ function registerIpc() {
 
   ipcMain.handle('get-language', () => getLanguage());
   ipcMain.handle('get-version', () => app.getVersion());
+  ipcMain.handle('get-platform', () => process.platform);
   ipcMain.handle('set-language', (_e, lang) => {
     patchSettings({ language: lang === 'tr' ? 'tr' : 'en' });
     updateTrayMenu();
@@ -488,6 +538,12 @@ const exportingIcon = Boolean(argValue(EXPORT_ICON_ARG));
 if (!exportingIcon && !app.requestSingleInstanceLock()) {
   app.quit();
 }
+// Linux'ta saydam pencereler ancak bu anahtarla calisir; ayrica pencere biraz gec acilmali
+if (IS_LINUX) {
+  app.commandLine.appendSwitch('enable-transparent-visuals');
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+}
+
 app.on('second-instance', openMenuFromOutside);
 
 app.whenReady().then(async () => {
@@ -510,6 +566,8 @@ app.whenReady().then(async () => {
 
   setAutostart(isAutostart());
   registerIpc();
+  // Linux'ta saydam pencere hemen acilirsa siyah zemin cikabiliyor; bir an bekletilir
+  if (IS_LINUX) await new Promise((r) => setTimeout(r, 300));
   createWindow();
   createTray();
 
@@ -533,7 +591,7 @@ app.whenReady().then(async () => {
   // Windows bazen gorev cubugunu one alip karakteri arkada birakiyor; ustte kalmayi tazele
   setInterval(() => {
     if (!win || win.isDestroyed() || !win.isVisible()) return;
-    win.setAlwaysOnTop(true, 'screen-saver');
+    keepOnTop(win);
     win.moveTop();
   }, 4000);
 });

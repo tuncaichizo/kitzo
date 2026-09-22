@@ -1,6 +1,6 @@
 {
   "name": "kitzo",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Kitzo - a tiny desktop buddy with voice commands, shortcuts, crypto mood and reminders",
   "author": "Tunca Ichizo",
   "license": "SEE LICENSE IN LICENSE",
@@ -9,12 +9,12 @@
     "start": "electron .",
     "icon": "electron . --export-icon=build/icon.png",
     "dist": "electron-builder --win nsis",
-    "characters": "node tools/pixel/build.js"
+    "characters": "node tools/pixel/build.js",
+    "dist:linux": "electron-builder --linux AppImage deb"
   },
   "build": {
     "appId": "com.kitzo.app",
     "productName": "Kitzo",
-    "artifactName": "Kitzo-Setup-${version}.${ext}",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -47,13 +47,56 @@
           ]
         }
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "Kitzo-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "createDesktopShortcut": true,
       "shortcutName": "Kitzo"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "synopsis": "Masaustu arkadasi: sesli komutlar, kisayollar, kripto ruh hali ve hatirlaticilar",
+      "artifactName": "Kitzo-${version}-${arch}.${ext}",
+      "executableName": "kitzo",
+      "desktop": {
+        "entry": {
+          "Name": "Kitzo",
+          "Comment": "Masaustu arkadasi",
+          "Categories": "Utility;",
+          "StartupWMClass": "Kitzo"
+        }
+      }
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
     }
   },
   "devDependencies": {

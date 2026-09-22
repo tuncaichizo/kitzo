@@ -1,0 +1,49 @@
+# Linux paketleri (AppImage + deb) Ubuntu uzerinde derlenir ve surume eklenir.
+# Windows kurulumu elle derlenip yayinlandigi icin burada yer almaz.
+name: Linux paketleri
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Paketlerin yukleneceği surum etiketi (ornek: v0.4.6)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Ses modelleri depoda tutulmuyor; ilk derlemede indirilir, sonrakilerde onbellekten gelir
+      - name: Ses modelleri onbellegi
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: vosk-models-tr-0.3-en-us-0.15
+
+      - name: Ses modellerini hazirla
+        run: >
+          node -e "const m=require('./lib/voice-model');(async()=>{await m.ensure('models','tr',()=>{});await
+          m.ensure('models','en',()=>{});process.exit(0)})()"
+
+      - name: Paketleri derle
+        run: npx electron-builder --linux AppImage deb --publish never
+
+      - name: Surume yukle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/*.AppImage dist/*.deb --clobber
