@@ -25,17 +25,17 @@ Everything runs **locally and for free** — no accounts, no API keys.
 
 **Windows** – download `Kitzo-Setup-x.y.z.exe` from the [Releases](../../releases) page and run it.
 
-**Linux (x64)** – download `Kitzo-x.y.z-x64.AppImage`, make it executable and run it:
+**Linux (x64)** – download `Kitzo-x.y.z-x86_64.AppImage`, make it executable and run it:
 
 ```bash
 chmod +x Kitzo-*.AppImage
 ./Kitzo-*.AppImage
 ```
 
-Debian/Ubuntu users can install `Kitzo-x.y.z-x64.deb` instead:
+Debian/Ubuntu users can install `Kitzo-x.y.z-amd64.deb` instead:
 
 ```bash
-sudo apt install ./Kitzo-*-x64.deb
+sudo apt install ./Kitzo-*-amd64.deb
 ```
 
 Kitzo starts on login by default (you can turn that off in Settings). On Linux a compositing
@@ -77,17 +77,17 @@ Her şey **yerel ve ücretsiz** çalışır — hesap ya da API anahtarı gerekm
 
 **Kurulum (Windows):** [Releases](../../releases) sayfasından `Kitzo-Setup-x.y.z.exe` dosyasını indirip çalıştırın.
 
-**Kurulum (Linux x64):** Aynı sayfadan `Kitzo-x.y.z-x64.AppImage` dosyasını indirip çalıştırılabilir yapın:
+**Kurulum (Linux x64):** Aynı sayfadan `Kitzo-x.y.z-x86_64.AppImage` dosyasını indirip çalıştırılabilir yapın:
 
 ```bash
 chmod +x Kitzo-*.AppImage
 ./Kitzo-*.AppImage
 ```
 
-Debian/Ubuntu için `Kitzo-x.y.z-x64.deb` paketi de var:
+Debian/Ubuntu için `Kitzo-x.y.z-amd64.deb` paketi de var:
 
 ```bash
-sudo apt install ./Kitzo-*-x64.deb
+sudo apt install ./Kitzo-*-amd64.deb
 ```
 
 Saydam pencere için masaüstünüzün birleştirici (compositor) desteği gerekir; GNOME, KDE ve güncel

@@ -80,12 +80,14 @@
         "entry": {
           "Name": "Kitzo",
           "Comment": "Masaustu arkadasi",
-          "Categories": "Utility;",
-          "StartupWMClass": "Kitzo"
+          "Categories": "Utility;"
         }
-      }
+      },
+      "desktopName": "kitzo.desktop",
+      "syncDesktopName": true
     },
     "deb": {
+      "maintainer": "Tunca Ichizo <tuncaichizo@users.noreply.github.com>",
       "depends": [
         "libgtk-3-0",
         "libnotify4",
