@@ -1,0 +1,53 @@
+# Yayinlanan Linux paketlerini gercek bir Ubuntu'da acip hata veriyor mu diye bakar.
+# Sanal ekran (Xvfb) kullanilir; amac calistirmak degil, acilis hatalarini gormek.
+name: Linux deneme
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Denenecek surum etiketi (ornek: v0.4.7)'
+        required: true
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Paketleri indir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "${{ github.event.inputs.tag }}" -R ${{ github.repository }} -p '*.AppImage' -p '*.deb'
+
+      - name: Sanal ekran
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      # Siradan bir kullanicinin makinesini taklit ediyoruz: libfuse2 kurmuyoruz
+      - name: AppImage denemesi
+        run: |
+          set +e
+          chmod +x ./Kitzo-*.AppImage
+          timeout 40 xvfb-run -a ./Kitzo-*.AppImage > appimage.log 2>&1
+          echo "cikis kodu: $?"
+          echo '--- ciktı ---'
+          cat appimage.log || true
+
+      - name: deb kurulumu
+        run: |
+          set +e
+          sudo apt-get install -y ./Kitzo-*-amd64.deb
+          echo "apt cikis kodu: $?"
+          dpkg -L kitzo | head -20
+
+      - name: deb ile calistirma denemesi
+        run: |
+          set +e
+          timeout 40 xvfb-run -a /opt/Kitzo/kitzo > deb.log 2>&1
+          echo "cikis kodu: $?"
+          echo '--- ciktı ---'
+          cat deb.log || true
+          echo '--- uygulama gunlugu ---'
+          cat ~/.config/kitzo/voice.log 2>/dev/null || echo "gunluk yok"
