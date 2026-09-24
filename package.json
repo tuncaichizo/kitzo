@@ -16,6 +16,9 @@
   "build": {
     "appId": "com.kitzo.app",
     "productName": "Kitzo",
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
     "directories": {
       "output": "dist",
       "buildResources": "build"

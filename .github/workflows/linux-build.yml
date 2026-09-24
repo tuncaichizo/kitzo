@@ -1,5 +1,5 @@
-# Linux paketleri (AppImage + deb) Ubuntu uzerinde derlenir ve surume eklenir.
-# Windows kurulumu elle derlenip yayinlandigi icin burada yer almaz.
+# Linux paketleri (AppImage + deb) Ubuntu uzerinde derlenir, gercekten acildiklari denenir
+# ve ancak ondan sonra surume eklenir. Windows kurulumu elle derlenip yayinlandigi icin burada yok.
 name: Linux paketleri
 
 on:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Paketlerin yukleneceği surum etiketi (ornek: v0.4.6)'
+        description: 'Paketlerin yukleneceği surum etiketi (ornek: v0.4.7)'
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +41,43 @@ jobs:
 
       - name: Paketleri derle
         run: npx electron-builder --linux AppImage deb --publish never
+
+      # Siradan bir Ubuntu 24.04 masaustunu taklit et: libfuse2 yok ve AppArmor
+      # kullanici ad alanlarini kisitliyor (CI makinesinde bu kisit varsayilan olarak kapali).
+      - name: Deneme ortami
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          if dpkg -s libfuse2t64 >/dev/null 2>&1 || dpkg -s libfuse2 >/dev/null 2>&1; then
+            sudo apt-get remove -y libfuse2t64 libfuse2 || true
+          fi
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1 || true
+          # testin bos gecmedigini gormek icin ortami yazdir
+          echo "libfuse2: $(ls /usr/lib/x86_64-linux-gnu/libfuse.so.2* 2>/dev/null || echo yok)"
+          echo "userns kisiti: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo bilinmiyor)"
+
+      # 30 sn sonra zaman asimiyla kapatilirsa (kod 124) uygulama ayakta demektir; baska her kod hata
+      - name: AppImage acilis denemesi
+        run: |
+          chmod +x dist/*.AppImage
+          set +e
+          timeout 30 xvfb-run -a dist/Kitzo-*.AppImage > appimage.log 2>&1
+          code=$?
+          set -e
+          tail -30 appimage.log
+          if [ "$code" -ne 124 ]; then echo "::error::AppImage acilmadi (cikis kodu $code)"; exit 1; fi
+          echo "AppImage acildi ve calismaya devam etti"
+
+      - name: deb kurulum ve acilis denemesi
+        run: |
+          sudo apt-get install -y ./dist/Kitzo-*-amd64.deb
+          set +e
+          timeout 30 xvfb-run -a kitzo > deb.log 2>&1
+          code=$?
+          set -e
+          tail -30 deb.log
+          if [ "$code" -ne 124 ]; then echo "::error::deb ile kurulan uygulama acilmadi (cikis kodu $code)"; exit 1; fi
+          echo "deb paketi kuruldu, uygulama acildi ve calismaya devam etti"
 
       - name: Surume yukle
         env:

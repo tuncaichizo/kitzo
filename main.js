@@ -541,6 +541,11 @@ if (!exportingIcon && !app.requestSingleInstanceLock()) {
 // Linux'ta saydam pencereler ancak bu anahtarla calisir; ayrica pencere biraz gec acilmali
 if (IS_LINUX) {
   app.commandLine.appendSwitch('enable-transparent-visuals');
+  // AppImage salt okunur bir kalip icinden calisir; chrome-sandbox'a SUID verilemez ve Ubuntu 24+
+  // AppArmor ile kullanici ad alanlarini kisitlar. deb paketi bunu kendi AppArmor profiliyle cozuyor,
+  // AppImage'da ise tek care sandbox'siz baslatmak. Uygulama sadece kendi yerel dosyalarini
+  // yukledigi (disaridan web sayfasi acmadigi) icin bu guvenli bir odun.
+  if (process.env.APPIMAGE) app.commandLine.appendSwitch('no-sandbox');
 }
 
 app.on('second-instance', openMenuFromOutside);
