@@ -17,6 +17,7 @@ Everything runs **locally and for free** — no accounts, no API keys.
 - **Actions** – stay / wander, go to corner, wave, throw, sleep.
 - **Tricks** – every couple of minutes it performs a random trick: backflip, spin, stretch, looking around, moonwalk, dash, peeking from the screen edge, coffee break, scratching, sneezing, hops, juggling, watching your mouse, dizzy spin, push-ups, ninja vanish, kicking a ball, a power nap or a dance. Actions → Do a Trick, or ask by name: *"backflip"*, *"moonwalk"*, *"juggle"*, *"vanish"*…
 - **Screen marks** – every few minutes it throws something onto the screen (paint splat, paw prints, a coin, a star, a sticker, confetti, bubbles) that fades within 5 seconds. Trigger it from Actions or say *"throw something"*; switch it off in Settings.
+- **Slingshot** – press and hold on it without moving, then pull back and let go: rubber bands and a dotted trajectory appear, and it flies Angry Birds style (bouncing between your monitors). Switch it off in Settings.
 - **Multi-monitor** – drag it to any screen.
 - **Global hotkeys** – `Ctrl+Alt+K` opens the menu anywhere; `Ctrl+Alt+L` listens for a command right away (no wake word needed — handy in noisy rooms).
 - **Turkish / English** UI and voice.
@@ -74,6 +75,7 @@ Her şey **yerel ve ücretsiz** çalışır — hesap ya da API anahtarı gerekm
 - **Piyasa, hatırlatıcı, eylemler, dil seçimi, Ctrl+Alt+K** kısayolu.
 - **Numaralar** – birkaç dakikada bir rastgele bir numara yapar: takla, dönme, gerinme, etrafa bakınma, moonwalk, koşu, kenardan bakma, kahve molası, kaşınma, hapşırma, zıplama, hokkabazlık, fareyi izleme, baş dönmesi, şınav, ninja kaybolması, topa vurma, şekerleme, dans. Eylemler → Numara Yap ya da adıyla iste: *"takla at"*, *"moonwalk"*, *"hokkabazlık"*, *"kaybol"*…
 - **Ekran izleri** – ara sıra ekrana bir şey fırlatır (boya lekesi, pati izi, coin, yıldız, çıkartma, konfeti, baloncuk); iz 5 saniye içinde silinir. Eylemler → Fırlat ya da "fırlat" de; Ayarlar'dan kapatılabilir.
+- **Sapan** – üzerine basıp kımıldamadan bekleyin, sonra geri çekip bırakın: lastik ve noktalı yörünge belirir, Angry Birds gibi fırlar (monitörler arasında seker). Ayarlar'dan kapatılabilir.
 
 **Kurulum (Windows):** [Releases](../../releases) sayfasından `Kitzo-Setup-x.y.z.exe` dosyasını indirip çalıştırın.
 

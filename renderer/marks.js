@@ -741,5 +741,58 @@
     }
   }
 
+  // ---------- sapan: catal, lastik ve yorunge noktalari ----------
+  const sling = document.getElementById('sling');
+  const sctx = sling.getContext('2d');
+  const snap = (v) => Math.round(v / 2) * 2; // piksel tarzi: 2 px izgara
+
+  function slingLine(x1, y1, x2, y2, width, color) {
+    sctx.strokeStyle = color;
+    sctx.lineWidth = width;
+    sctx.lineCap = 'square';
+    sctx.beginPath();
+    sctx.moveTo(snap(x1), snap(y1));
+    sctx.lineTo(snap(x2), snap(y2));
+    sctx.stroke();
+  }
+
+  function slingAim(d) {
+    if (sling.width !== d.width || sling.height !== d.height) {
+      sling.width = d.width;
+      sling.height = d.height;
+    }
+    sctx.clearRect(0, 0, sling.width, sling.height);
+    const a = d.anchor;
+    const p = d.pos;
+    const left = { x: a.x - 16, y: a.y - 6 };
+    const right = { x: a.x + 16, y: a.y - 6 };
+    // gerildikce lastik incelir, kizarir
+    const rubberW = Math.round(6 - 3 * d.power01);
+    const rubber = d.power01 > 0.6 ? '#b3261e' : '#7a2e1a';
+    slingLine(left.x, left.y, p.x, p.y, rubberW + 2, '#2b1608'); // koyu kontur
+    slingLine(right.x, right.y, p.x, p.y, rubberW + 2, '#2b1608');
+    slingLine(left.x, left.y, p.x, p.y, rubberW, rubber);
+    slingLine(right.x, right.y, p.x, p.y, rubberW, rubber);
+    // Y catal: sap + iki kol
+    slingLine(a.x, a.y + 40, a.x, a.y + 12, 10, '#2b1608');
+    slingLine(a.x, a.y + 12, left.x, left.y, 10, '#2b1608');
+    slingLine(a.x, a.y + 12, right.x, right.y, 10, '#2b1608');
+    slingLine(a.x, a.y + 40, a.x, a.y + 12, 6, '#6b4423');
+    slingLine(a.x, a.y + 12, left.x, left.y, 6, '#6b4423');
+    slingLine(a.x, a.y + 12, right.x, right.y, 6, '#6b4423');
+    // yorunge: gittikce kuculen kare noktalar
+    const n = d.dots.length;
+    d.dots.forEach((q, i) => {
+      const r = Math.max(2, Math.round(6 - (i / Math.max(1, n)) * 4));
+      sctx.fillStyle = '#2b1608';
+      sctx.fillRect(snap(q.x) - r - 1, snap(q.y) - r - 1, r * 2 + 2, r * 2 + 2);
+      sctx.fillStyle = '#fff6d5';
+      sctx.fillRect(snap(q.x) - r, snap(q.y) - r, r * 2, r * 2);
+    });
+  }
+
+  window.marks.onSlingAim(slingAim);
+  window.marks.onSlingClear(() => sctx.clearRect(0, 0, sling.width, sling.height));
+
   window.marks.onPlay(play);
 })();

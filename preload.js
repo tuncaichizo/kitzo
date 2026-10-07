@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('ichi', {
   voiceLog: (text) => ipcRenderer.send('voice-log', text),
   voiceReady: () => ipcRenderer.send('voice-ready'),
   throwMark: (data) => ipcRenderer.send('throw-mark', data),
+  slingAim: (data) => ipcRenderer.send('sling-aim', data),
+  slingClear: () => ipcRenderer.send('sling-clear'),
 
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   getPosition: () => ipcRenderer.invoke('get-position'),
@@ -40,5 +42,6 @@ contextBridge.exposeInMainWorld('ichi', {
   onThrowNow: on('throw-now'),
   onAnticNow: on('antic-now'),
   onFlingNow: on('fling-now'),
+  onSlingTest: on('sling-test'),
   onMenuSection: on('menu-section'),
 });

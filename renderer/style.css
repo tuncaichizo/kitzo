@@ -504,6 +504,12 @@ html, body {
   50% { transform: translateY(3px) rotate(-6deg); }
 }
 
+.character.slinging svg {
+  transform-origin: center bottom;
+  transform: scale(var(--sl-sx, 1), var(--sl-sy, 1));
+  animation: none;
+}
+
 .character.squash svg {
   transform-origin: center bottom;
   animation: squash 0.26s ease-out 1;

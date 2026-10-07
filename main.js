@@ -32,6 +32,7 @@ const EXPORT_ICON_ARG = '--export-icon=';
 const THROW_TEST_ARG = '--throw-test='; // gelistirme: virgullu tur listesi, 6 sn arayla oynatilir
 const ANTIC_TEST_ARG = '--antic-test=';
 const FLING_TEST_ARG = '--fling='; // gelistirme: "vx,vy" hiziyla firlatma dener
+const SLING_TEST_ARG = '--sling-test='; // gelistirme: "dx,dy" kadar cekip birakir (sapan)
 const MENU_TEST_ARG = '--menu='; // gelistirme: menuyu belirtilen bolumde acar (main, actions, settings...) // gelistirme: virgullu numara listesi, 7 sn arayla oynatilir
 
 let win;
@@ -344,6 +345,16 @@ function createWindow() {
       }, 5000);
     });
   }
+  const slingTest = argValue(SLING_TEST_ARG);
+  if (slingTest) {
+    win.webContents.once('did-finish-load', () => {
+      const [dx, dy] = slingTest.split(',').map(Number);
+      setTimeout(() => {
+        appendVoiceLog(`SLING-TEST: ${dx},${dy}`);
+        send('sling-test', { dx: dx || 0, dy: dy || 0 });
+      }, 5000);
+    });
+  }
   const throwTest = argValue(THROW_TEST_ARG);
   if (throwTest) {
     win.webContents.once('did-finish-load', () => {
@@ -437,6 +448,57 @@ async function playMarks(data) {
   marksHideTimer = setTimeout(hideMarks, 6500); // katman bitis bildirmese de kapanir
 }
 
+// Sapan: lastik ve yorunge cizgisi ayni katmanda cizilir (renderer koordinatlari ekran koordinatidir)
+let slingLayer = false; // katman sapan icin gorunuyor mu
+let slingShownArea = null;
+let slingAimLogged = false;
+let slingSeq = 0; // sling-clear sirasinda bekleyen aim mesaji katmani yeniden acmasin
+
+async function slingAim(data) {
+  if (!win || win.isDestroyed() || !data.anchor || !data.pos) return;
+  clearTimeout(marksIdleTimer);
+  const seq = slingSeq;
+  const b = win.getBounds();
+  const disp = screen.getDisplayNearestPoint({ x: data.anchor.x, y: data.anchor.y });
+  const area = disp.bounds;
+  const w = await marksReady();
+  if (!w || w.isDestroyed() || seq !== slingSeq) return;
+  const changed =
+    !slingShownArea || slingShownArea.x !== area.x || slingShownArea.y !== area.y || slingShownArea.width !== area.width || slingShownArea.height !== area.height;
+  if (!slingLayer || changed) {
+    w.setBounds({ x: area.x, y: area.y, width: area.width, height: area.height });
+    w.showInactive();
+    win.moveTop(); // karakter lastigin ustunde kalsin
+    slingLayer = true;
+    slingShownArea = { ...area };
+  }
+  if (!slingAimLogged) {
+    slingAimLogged = true;
+    appendVoiceLog(`SLING-AIM: katman ${area.x},${area.y} ${area.width}x${area.height} (kitzo ${b.x},${b.y})`);
+  }
+  const rel = (p) => ({ x: p.x - area.x, y: p.y - area.y });
+  w.webContents.send('sling-aim', {
+    anchor: rel(data.anchor),
+    pos: rel(data.pos),
+    dots: Array.isArray(data.dots) ? data.dots.map(rel) : [],
+    power01: Number(data.power01) || 0,
+    width: area.width,
+    height: area.height,
+  });
+  clearTimeout(marksHideTimer);
+  marksHideTimer = setTimeout(slingClear, 15000); // sling-clear kaybolsa da katman takili kalmaz
+}
+
+function slingClear() {
+  slingSeq++;
+  slingAimLogged = false;
+  if (!slingLayer) return;
+  slingLayer = false;
+  slingShownArea = null;
+  if (marksWin && !marksWin.isDestroyed()) marksWin.webContents.send('sling-clear');
+  hideMarks();
+}
+
 function registerIpc() {
   // Hareket icin tam ekran sinirlari (gorev cubugu ustunde de gezebilsin), dinlenme
   // yuksekligi icin calisma alani (cubugun arkasinda kaybolmasin) birlikte gonderilir.
@@ -509,6 +571,8 @@ function registerIpc() {
 
   ipcMain.on('throw-mark', (_e, data) => playMarks(data || {}).catch(() => {}));
   ipcMain.on('marks-done', hideMarks);
+  ipcMain.on('sling-aim', (_e, data) => slingAim(data || {}).catch(() => {}));
+  ipcMain.on('sling-clear', slingClear);
 }
 
 // Gelistirme yardimcisi: karakteri 256x256 PNG olarak disari aktarir (kurulum ikonu icin).

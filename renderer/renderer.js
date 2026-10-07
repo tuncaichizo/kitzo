@@ -3,16 +3,19 @@ const CHAR_H = 103; // 77 karakter + 26 emote alani (karakter 64x77, pencere 100
 const OVERLAY_GAP = 8;
 const DRAG_THRESHOLD = 8;
 // Firlatma/dusme fizigi (yaklasik 30 kare/sn)
-const GRAVITY = 2.4; // kare basina hiz artisi
-const BOUNCE = 0.52; // yere carpinca korunan hiz
-const WALL_BOUNCE = 0.62;
-const GROUND_FRICTION = 0.8;
-const AIR_DRAG = 0.995;
+// (yercekimi, sekme, surtunme degerleri renderer/sling.js DEFAULTS icinde)
 const THROW_SCALE = 26; // fare hizindan (piksel/ms) kare hizina
 const MAX_THROW = 70;
 const CROSS_SPEED = 30; // bu hizin ustunde ekran kenarindan komsu ekrana gecer
-const REST_SPEED = 2.4;
 const THROW_MIN = 9; // bu hizin altinda birakilirsa oldugu yerde kalir (dusmez)
+// Sapan: uzun basip cek-birak
+const SLING_HOLD_MS = 350; // fare bu kadar kimildamazsa sapan modu
+const SLING_MIN_POWER = 0.12; // bundan kisa cekme = iptal
+const SLING_IMPACT = 35; // sapanla firlatilmisken bu hizdan sert carpma = 💥
+const SLING_AIM_MS = 33; // lastik/yorunge mesaji en cok ~30/sn
+const SLING_DOTS = 16;
+const SLING_GROUND_NEAR = 12; // zemine bu kadar yakinsa 'yerde' sayilir
+const SLING_HOP_FRAMES = 7; // yerdeki Kitzo'nun sapan noktasina ziplama suresi (33 ms kare)
 const TASKBAR_STAND = 10; // ayaklar gorev cubugunun ust kenarina bu kadar basar
 const GROUND_MARGIN = 6; // gorev cubugu yoksa alt kenardan bosluk
 const WALK_SPEED = 3.2; // 30 kare/sn'de piksel/adim (once 1.6 @ 60 kare/sn)
@@ -118,6 +121,7 @@ const throwBtn = $('btn-throw');
 const trickBtn = $('btn-trick');
 const powerBtns = [$('btn-power1'), $('btn-power2'), $('btn-power3')];
 const marksBtn = $('btn-marks');
+const slingBtn = $('btn-sling');
 const quitBtn = $('btn-quit');
 const scLabelEl = $('sc-label');
 const scTargetEl = $('sc-target');
@@ -151,8 +155,13 @@ let dragging = false;
 let dragMoved = false;
 let dragStartMouse = null;
 let dragStartPos = null;
+let lastMouse = null; // son fare konumu (ekran); sapan modu baslarken referans
 let hovering = false;
-let physics = null; // { vx, vy, timer } - firlatma/dusme suruyorsa dolu
+let physics = null; // { vx, vy, timer, bounces, sling } - firlatma/dusme suruyorsa dolu
+let slingOn = true; // uzun basip cek-birak sapan
+let slingHoldTimer = null;
+let slinging = null; // { anchor, anchorPos, display, mouse0, power01, lastAim, sim } - sapan cekilirken dolu
+let lastMarkAt = 0; // ekran izi katmani en son ne zaman kullanildi
 let dragSamples = [];
 
 let overlay = null; // { el, extra, below }
@@ -291,6 +300,7 @@ async function init() {
   stay = savedItem('stay') === '1';
   feedback = savedItem('feedback') !== '0';
   marksOn = savedItem('marks') !== '0';
+  slingOn = savedItem('sling') !== '0';
 
   applyLanguage();
   loadCharacter(savedItem('character'));
@@ -359,6 +369,7 @@ function bindIpc() {
   window.ichi.onListenNow(listenNow);
   window.ichi.onSetCharacter(({ id }) => loadCharacter(id)); // gelistirme: --antic-test ile birlikte --char=
   window.ichi.onFlingNow(({ vx, vy }) => startPhysics(vx, vy)); // gelistirme: --fling=vx,vy
+  window.ichi.onSlingTest(({ dx, dy }) => runSlingTest(dx, dy)); // gelistirme: --sling-test=dx,dy
   window.ichi.onMenuSection((name) => {
     window.ichi.voiceLog(`MENU-TEST: alindi ${name}`);
     openMenu();
@@ -381,6 +392,7 @@ function applyLanguage() {
   updateStayButton();
   updateFeedbackButton();
   updateMarksButton();
+  updateSlingButton();
   refreshAutostart();
   renderShortcutList();
   renderReminderList();
@@ -840,6 +852,7 @@ function throwSomething(type) {
   charEl.classList.remove('throw');
   void charEl.offsetWidth;
   charEl.classList.add('throw');
+  lastMarkAt = Date.now();
   setTimeout(() => charEl.classList.remove('throw'), 900);
   showEmote(extra.emoji || THROW_EMOJI[kind] || '🎯', 2200);
   window.ichi.voiceLog(`THROW: ${kind}`);
@@ -859,6 +872,10 @@ function throwSomething(type) {
 
 function updateMarksButton() {
   marksBtn.textContent = t(marksOn ? 'marksOn' : 'marksOff');
+}
+
+function updateSlingButton() {
+  slingBtn.textContent = t(slingOn ? 'slingOn' : 'slingOff');
 }
 
 // Dogal goz kirpma; arada bir tek gozle yaramaz kirpis
@@ -995,6 +1012,14 @@ charEl.addEventListener('mousedown', (e) => {
   charEl.classList.remove('walking');
   dragStartMouse = { x: e.screenX, y: e.screenY };
   dragStartPos = { x: posX, y: posY };
+  lastMouse = dragStartMouse;
+  // Uzun basip kimildamazsa sapan modu; hemen surukleme eski surukle-firlat olarak calisir
+  clearTimeout(slingHoldTimer);
+  if (slingCanStart()) {
+    slingHoldTimer = setTimeout(() => {
+      if (dragging && !dragMoved && !slinging && slingCanStart()) enterSling();
+    }, SLING_HOLD_MS);
+  }
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -1004,10 +1029,16 @@ window.addEventListener('mousemove', (e) => {
     finishDrag(false);
     return;
   }
+  lastMouse = { x: e.screenX, y: e.screenY };
+  if (slinging) {
+    slingMove(e.screenX, e.screenY);
+    return;
+  }
   const dx = e.screenX - dragStartMouse.x;
   const dy = e.screenY - dragStartMouse.y;
   if (!dragMoved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
     dragMoved = true;
+    clearTimeout(slingHoldTimer);
     if (sleeping) wakeUp('drag');
     showEmote('😵', 0, true);
   }
@@ -1081,14 +1112,14 @@ function releaseThrow() {
   startPhysics(vx, vy);
 }
 
-function startPhysics(vx, vy) {
+function startPhysics(vx, vy, sling = false) {
   if (bubbleOpen()) hideBubble();
   stopPhysics(false);
   clearTimeout(moveTimer);
   clearInterval(walkTick);
   charEl.classList.remove('walking');
   charEl.classList.add('idle');
-  physics = { vx, vy, timer: null, bounces: 0 };
+  physics = { vx, vy, timer: null, bounces: 0, sling, marked: false };
   window.ichi.voiceLog(`FLING: vx=${Math.round(vx)} vy=${Math.round(vy)} @${posX},${posY}`);
   physics.timer = setInterval(stepPhysics, 33);
 }
@@ -1102,73 +1133,226 @@ function stopPhysics(resume = true) {
   if (resume && !sleeping) scheduleNextMove();
 }
 
+// Dunya sinirlari (sling.js step/predictPath icin); ekran kenarinda komsu ekran varsa oradan cikilabilir
+function worldFor(d, extra) {
+  return {
+    left: d.x,
+    right: d.x + d.width - winW(),
+    top: d.y - extra,
+    ground: groundOf(d) - extra,
+    canExitLeft: Boolean(neighborDisplay(d, 'left')),
+    canExitRight: Boolean(neighborDisplay(d, 'right')),
+    crossSpeed: CROSS_SPEED,
+  };
+}
+
+function overlayExtra() {
+  return overlay && !overlay.below ? overlay.extra : 0;
+}
+
 function stepPhysics() {
   if (dragging) {
     stopPhysics(false);
     return;
   }
   const p = physics;
-  p.vy += GRAVITY;
-  p.vx *= AIR_DRAG;
-  let nx = posX + p.vx;
-  let ny = posY + p.vy;
-
   const d = displayAt(posX + winW() / 2, posY + CHAR_H / 2) || currentDisplay();
   // menu/balon acikken pencere yukari dogru buyur; karakter pencerenin dibinde durdugu icin
   // yer seviyesi o kadar yukari kaymali, yoksa karakter ekranin altina itilir
-  const extra = overlay && !overlay.below ? overlay.extra : 0;
-  const groundY = groundOf(d) - extra;
-  const leftX = d.x;
-  const rightX = d.x + d.width - winW();
+  const extra = overlayExtra();
+  const body = { x: posX, y: posY, vx: p.vx, vy: p.vy, bounces: p.bounces };
+  const r = KitzoSling.step(body, worldFor(d, extra));
+  p.vx = body.vx;
+  p.vy = body.vy;
+  p.bounces = body.bounces;
+  if ((r.hits.wall && Math.abs(p.vx) > 4) || r.hits.ground) squash();
 
-  // yanlar: hizliysa komsu ekrana gecer, degilse sekar
-  if (nx < leftX) {
-    if (!(neighborDisplay(d, 'left') && Math.abs(p.vx) > CROSS_SPEED)) {
-      nx = leftX;
-      p.vx = -p.vx * WALL_BOUNCE;
-      if (Math.abs(p.vx) > 4) squash();
-    }
-  } else if (nx > rightX) {
-    if (!(neighborDisplay(d, 'right') && Math.abs(p.vx) > CROSS_SPEED)) {
-      nx = rightX;
-      p.vx = -p.vx * WALL_BOUNCE;
-      if (Math.abs(p.vx) > 4) squash();
-    }
-  }
-
-  // tavan
-  if (ny < d.y - extra) {
-    ny = d.y - extra;
-    p.vy = Math.abs(p.vy) * WALL_BOUNCE;
-  }
-
-  // yer: sekme, surtunme ve durma
-  let landed = false;
-  if (ny >= groundY) {
-    ny = groundY;
-    if (Math.abs(p.vy) > REST_SPEED) {
-      p.vy = -Math.abs(p.vy) * BOUNCE;
-      p.vx *= GROUND_FRICTION;
-      p.bounces++;
-      squash();
-    } else {
-      p.vy = 0;
-      p.vx *= GROUND_FRICTION;
-      if (Math.abs(p.vx) < 1.2) landed = true;
-    }
-  }
-
-  posX = Math.round(nx);
-  posY = Math.round(ny);
+  posX = Math.round(body.x);
+  posY = Math.round(body.y);
   window.ichi.moveWindow(posX, posY, false);
-  if (landed) {
+  if (p.sling && !p.marked && (r.hit === 'wall' || r.hit === 'ground') && r.impact > SLING_IMPACT) slingImpact(r.impact);
+  if (r.landed) {
     showEmote('💫', 1400); // nereye dustugu belli olsun
     stopPhysics();
   }
 }
 
+// ---------- sapan (uzun bas, cek, birak) ----------
+
+function slingCanStart() {
+  return slingOn && !sleeping && !overlay && !(window.KitzoAntics && KitzoAntics.busy());
+}
+
+function slingCenter() {
+  return { x: posX + winW() / 2, y: posY + CHAR_H / 2 };
+}
+
+function enterSling() {
+  clearTimeout(slingHoldTimer);
+  const c0 = slingCenter();
+  const d = displayAt(c0.x, c0.y) || currentDisplay();
+  const ground = groundOf(d) - overlayExtra();
+  // Yerdeyse sapana zipla: anchor zeminden yukarida, boylece asagi/geri cekince yukari firlatilir
+  const grounded = ground - posY <= SLING_GROUND_NEAR;
+  const hopY = grounded ? Math.max(d.y, ground - Math.round(KitzoSling.DEFAULTS.maxPull * 0.7)) : posY;
+  slinging = {
+    anchor: { x: c0.x, y: hopY + CHAR_H / 2 },
+    anchorPos: { x: posX, y: posY },
+    d,
+    mouse0: lastMouse || dragStartMouse,
+    lastAim: 0,
+    grounded,
+    hopping: grounded && hopY < posY,
+    hopTimer: null,
+  };
+  charEl.classList.remove('walking');
+  charEl.classList.add('slinging');
+  showEmote('🎯', 0, true);
+  window.ichi.voiceLog(`SLING: basla @${posX},${posY}${grounded ? ' yerde->hop ' + hopY : ''}`);
+  if (!slinging.hopping) {
+    sendSlingAim(true);
+    return;
+  }
+  const s = slinging;
+  const fromY = posY;
+  let frame = 0;
+  s.hopTimer = setInterval(() => {
+    frame++;
+    const t = Math.min(1, frame / SLING_HOP_FRAMES);
+    posY = Math.round(fromY + (hopY - fromY) * t - Math.sin(Math.PI * t) * 10); // kucuk hop yayi
+    if (t >= 1) posY = hopY;
+    window.ichi.moveWindow(posX, posY, false);
+    if (t >= 1) {
+      clearInterval(s.hopTimer);
+      s.hopTimer = null;
+      s.hopping = false;
+      s.mouse0 = lastMouse || s.mouse0; // cekme simdiki fare konumundan baslasin
+      sendSlingAim(true);
+    }
+  }, 33);
+}
+
+// Fare konumundan cekme noktasi: anchor cevresinde daire icinde, ekran ve yer sinirlarinda
+function slingMove(mx, my) {
+  const s = slinging;
+  if (s.hopping) return;
+  const want = { x: s.anchor.x + (mx - s.mouse0.x), y: s.anchor.y + (my - s.mouse0.y) };
+  const c = KitzoSling.clampPull(s.anchor, want);
+  const d = s.d;
+  posX = Math.round(clamp(c.x - winW() / 2, d.x, d.x + d.width - winW()));
+  posY = Math.round(clamp(c.y - CHAR_H / 2, d.y, groundOf(d) - overlayExtra()));
+  window.ichi.moveWindow(posX, posY, false);
+  const v = KitzoSling.launchFromPull(s.anchor, slingCenter());
+  // gerildikce hafif ezilir
+  charEl.style.setProperty('--sl-sx', (1 + 0.16 * v.power01).toFixed(3));
+  charEl.style.setProperty('--sl-sy', (1 - 0.2 * v.power01).toFixed(3));
+  sendSlingAim(false);
+}
+
+// Lastik + yorunge noktalari marks katmanina (ekran koordinati); en cok ~30/sn
+function sendSlingAim(force) {
+  const s = slinging;
+  const now = performance.now();
+  if (!force && now - s.lastAim < SLING_AIM_MS) return;
+  s.lastAim = now;
+  const pos = slingCenter();
+  const v = KitzoSling.launchFromPull(s.anchor, pos);
+  const path = KitzoSling.predictPath({ x: posX, y: posY }, v, { world: worldFor(s.d, overlayExtra()) }, SLING_DOTS * 3, 3);
+  const dots = path.slice(0, SLING_DOTS).map((q) => ({ x: Math.round(q.x + winW() / 2), y: Math.round(q.y + CHAR_H / 2) }));
+  window.ichi.slingAim({ anchor: s.anchor, pos, dots, power01: v.power01 });
+}
+
+// commit: birakildi (firlat); degilse iptal (Esc / fare tusu kayboldu)
+function finishSling(commit) {
+  const s = slinging;
+  if (!s) return;
+  slinging = null;
+  clearInterval(s.hopTimer);
+  clearTimeout(slingHoldTimer);
+  dragging = false;
+  charEl.classList.remove('slinging');
+  charEl.style.removeProperty('--sl-sx');
+  charEl.style.removeProperty('--sl-sy');
+  charEl.classList.add('idle');
+  lastInteraction = Date.now();
+  window.ichi.slingClear();
+  hideEmote();
+  const pos = slingCenter();
+  const v = KitzoSling.launchFromPull(s.anchor, pos);
+  if (commit && v.power01 >= SLING_MIN_POWER) {
+    window.ichi.voiceLog(
+      `SLING: pull=${Math.round(pos.x - s.anchor.x)},${Math.round(pos.y - s.anchor.y)} v=${Math.round(v.vx)},${Math.round(v.vy)} p=${v.power01.toFixed(2)}`
+    );
+    startPhysics(v.vx, v.vy, true);
+    return;
+  }
+  // cok kisa cekme ya da iptal: Kitzo anchor'a doner; yerden zipladiysa yere geri iner
+  window.ichi.voiceLog(`SLING: iptal p=${v.power01.toFixed(2)}`);
+  if (s.grounded) {
+    posX = s.anchorPos.x;
+    posY = s.anchor.y - CHAR_H / 2;
+    window.ichi.moveWindow(posX, posY, false);
+    startPhysics(0, 0);
+    return;
+  }
+  posX = s.anchorPos.x;
+  posY = s.anchorPos.y;
+  window.ichi.moveWindow(posX, posY);
+  if (!sleeping) scheduleNextMove();
+}
+
+// Sapanla firlatilmisken sert carpma: patlama emote'u, ezilme, bos katmanda kucuk yildiz izi
+function slingImpact(impact) {
+  physics.marked = true;
+  showEmote('💥', 1400);
+  squash();
+  window.ichi.voiceLog(`SLING: carpma=${Math.round(impact)} @${posX},${posY}`);
+  if (marksOn && Date.now() - lastMarkAt > 6500 && !sleeping) {
+    lastMarkAt = Date.now();
+    window.ichi.throwMark({
+      type: 'star',
+      ox: winW() / 2,
+      oy: CHAR_H * 0.7,
+      dir: physics.vx >= 0 ? 1 : -1,
+      charId: currentCharId,
+      color: CHAR_COLORS[currentCharId] || '#b388ff',
+    });
+  }
+}
+
+// Gelistirme: --sling-test=dx,dy: anchor'dan (dx,dy) cekip birakma simulasyonu
+function runSlingTest(dx, dy, tries = 0) {
+  if (slinging || dragging) return;
+  // gercek kullanimda sapan balon/menu varken baslamaz; simulasyon da acik overlay'in kapanmasini bekler
+  if ((overlay || physics) && tries < 40) {
+    setTimeout(() => runSlingTest(dx, dy, tries + 1), 500);
+    return;
+  }
+  stopPhysics(false);
+  dragging = true;
+  dragMoved = false;
+  lastMouse = { x: 0, y: 0 };
+  enterSling();
+  setTimeout(() => {
+    if (!slinging) return;
+    slinging.mouse0 = { x: 0, y: 0 };
+    slingMove(dx, dy);
+    setTimeout(() => slinging && sendSlingAim(true), 150); // ilk mesaj kisitlamaya takilmasin
+    setTimeout(() => finishSling(true), 800);
+  }, 450); // hop bitsin
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && slinging) finishSling(false);
+});
+
 function finishDrag(allowClick) {
   if (!dragging) return;
+  clearTimeout(slingHoldTimer);
+  if (slinging) {
+    finishSling(allowClick);
+    return;
+  }
   dragging = false;
   charEl.classList.add('idle');
   lastInteraction = Date.now();
@@ -2061,6 +2245,11 @@ marksBtn.addEventListener('click', () => {
   saveItem('marks', marksOn ? '1' : '0');
   updateMarksButton();
   scheduleThrow();
+});
+slingBtn.addEventListener('click', () => {
+  slingOn = !slingOn;
+  saveItem('sling', slingOn ? '1' : '0');
+  updateSlingButton();
 });
 autostartBtn.addEventListener('click', async () => {
   const on = await window.ichi.getAutostart();
